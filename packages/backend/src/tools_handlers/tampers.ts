@@ -1,6 +1,6 @@
 import type { SDK } from "caido:plugin";
 
-import { executeGraphQLQuery } from "../graphql";
+import { executeGraphQLQueryviaSDK } from "../graphql";
 import {
   CREATE_TAMPER_RULE,
   CREATE_TAMPER_RULE_COLLECTION,
@@ -31,11 +31,11 @@ export const create_tamper_rule_collection = async (sdk: SDK, input: any) => {
 
     const variables = { input: { name: name } };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query: mutation,
       variables: variables,
       operationName: "createTamperRuleCollection",
-    });
+    }) as any;
 
     if (result.data && result.data.createTamperRuleCollection) {
       const collection = result.data.createTamperRuleCollection.collection;
@@ -125,7 +125,7 @@ export const create_tamper_rule = async (sdk: SDK, input: any) => {
       },
     };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query: mutation,
       variables: variables,
       operationName: "createTamperRule",
@@ -246,7 +246,7 @@ export const update_tamper_rule = async (sdk: SDK, input: any) => {
 
     sdk.console.log(`Update input:`, JSON.stringify(updateInput, null, 2));
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query: mutation,
       variables: variables,
       operationName: "updateTamperRule",
@@ -349,7 +349,7 @@ export const list_tamper_rule_collections = async (sdk: SDK, input: any) => {
     );
     sdk.console.log("GraphQL query:", query.substring(0, 200) + "...");
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query: query,
       variables: variables,
       operationName: "tamperRuleCollections",
@@ -543,7 +543,7 @@ export const list_tamper_rules = async (sdk: SDK, input: any) => {
     );
     sdk.console.log("GraphQL query:", query.substring(0, 200) + "...");
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query: query,
       variables: variables,
       operationName: "tamperRuleCollections",
@@ -734,7 +734,7 @@ export const read_tamper_rule = async (sdk: SDK, input: any) => {
     // This query uses named fragments, so we need to include them
     const query = READ_TAMPER_RULE + "\n" + getReadRuleFragments();
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query: query,
       variables: {},
       operationName: "tamperRuleCollections",
