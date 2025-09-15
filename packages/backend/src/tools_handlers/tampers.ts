@@ -35,7 +35,7 @@ export const create_tamper_rule_collection = async (sdk: SDK, input: any) => {
       query: mutation,
       variables: variables,
       operationName: "createTamperRuleCollection",
-    }) as any;
+    });
 
     if (result.data && result.data.createTamperRuleCollection) {
       const collection = result.data.createTamperRuleCollection.collection;

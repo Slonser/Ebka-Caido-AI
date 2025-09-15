@@ -126,11 +126,10 @@ async function desktopIntegration(
   toolName: string,
   input: string,
 ) {
-  if (!handlers.hasOwnProperty(toolName.replace("caido_", ""))) {
+  if (!Object.hasOwn(handlers, toolName.replace("caido_", ""))) {
     return `Handler for tool ${toolName} not found`;
   }
-  return await handlers[toolName.replace("caido_", "") as keyof typeof handlers](
-    sdk,
-    JSON.parse(input),
-  );
+  return await handlers[
+    toolName.replace("caido_", "") as keyof typeof handlers
+  ](sdk, JSON.parse(input));
 }

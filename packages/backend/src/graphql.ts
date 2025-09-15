@@ -68,7 +68,6 @@ export const getCaidoApiEndpoint = async (sdk: SDK): Promise<string | null> => {
   }
 };
 
-
 // TODO: delete this function
 /**
  * Execute a GraphQL query using the saved auth token
@@ -160,10 +159,14 @@ export const executeGraphQLQuery = async <T = any>(
   }
 };
 
-export const executeGraphQLQueryviaSDK = async (sdk: SDK, options: GraphQLOptions): Promise<any> => {
-  const { query, variables = {}} = options;
+export const executeGraphQLQueryviaSDK = async (
+  sdk: SDK,
+  options: GraphQLOptions,
+): Promise<any> => {
+  const { query, variables = {} } = options;
+  // @ts-ignore
   const result = await sdk.graphql.execute(query, variables);
-  if(result.errors) {
+  if (result.errors) {
     return {
       success: false,
       error: result.errors,

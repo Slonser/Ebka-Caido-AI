@@ -822,13 +822,17 @@ const copySendAuthTokenRequest = async () => {
   try {
     const authData = localStorage.getItem("CAIDO_AUTHENTICATION");
     if (!authData) {
-      sdk.window.showToast("No API key configured. Please set your API key first.");
+      sdk.window.showToast(
+        "No API key configured. Please set your API key first.",
+      );
       return;
     }
 
     const parsedAuth = JSON.parse(authData);
     if (!parsedAuth.accessToken) {
-      sdk.window.showToast("No access token found. Please set your API key first.");
+      sdk.window.showToast(
+        "No access token found. Please set your API key first.",
+      );
       return;
     }
 
@@ -924,8 +928,14 @@ If version is different from the version of the tools that are loaded into you, 
           <h2>Install Claude MCP with instruction or provide API Key</h2>
           <div class="installation-options">
             <div class="option">
-              <h3>Option 1: Install MCP server (local connection with Claude/Cursor)</h3>
-              <p>Follow the installation guide to set up MCP server to integrate with Caido:</p>
+              <h3>
+                Option 1: Install MCP server (local connection with
+                Claude/Cursor)
+              </h3>
+              <p>
+                Follow the installation guide to set up MCP server to integrate
+                with Caido:
+              </p>
               <a
                 href="https://github.com/Slonser/Ebka-Caido-AI/blob/main/claude-mcp-server/README.md"
                 target="_blank"

@@ -8,15 +8,16 @@ export const list_by_httpql = async (sdk: SDK, input: any) => {
   return {
     count: result.items.length,
     id_list: result.items.map((item: any) => item.request.getId()),
-    summary: `Found ${result.items.length} requests matching the query: [${result.items.map(
-      (item: any) => {
+    summary: `Found ${result.items.length} requests matching the query: [${result.items
+      .map((item: any) => {
         return JSON.stringify({
-          id: item.request.getId(), 
-          method: item.request.getMethod(), 
-          host:item.request.getHost(), 
-          path:item.request.getPath(), 
-        })
-    }).join(", ")}]`,
+          id: item.request.getId(),
+          method: item.request.getMethod(),
+          host: item.request.getHost(),
+          path: item.request.getPath(),
+        });
+      })
+      .join(", ")}]`,
   };
 };
 
