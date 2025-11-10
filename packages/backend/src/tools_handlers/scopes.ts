@@ -1,6 +1,6 @@
 import type { SDK } from "caido:plugin";
 
-import { executeGraphQLQuery } from "../graphql";
+import { executeGraphQLQueryviaSDK } from "../graphql";
 import {
   CREATE_SCOPE_MUTATION,
   DELETE_SCOPE_MUTATION,
@@ -13,7 +13,7 @@ export const list_scopes = async (sdk: SDK, input: any) => {
     // Use imported GraphQL query for listing scopes
     const query = SCOPES_QUERY;
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       operationName: "scopes",
     });
@@ -77,7 +77,7 @@ export const create_scope = async (sdk: SDK, input: any) => {
       },
     };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       variables,
       operationName: "createScope",
@@ -168,7 +168,7 @@ export const update_scope = async (sdk: SDK, input: any) => {
       input: updateInput,
     };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       variables,
       operationName: "updateScope",
@@ -245,7 +245,7 @@ export const delete_scope = async (sdk: SDK, input: any) => {
       id: scopeId,
     };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       variables,
       operationName: "deleteScope",

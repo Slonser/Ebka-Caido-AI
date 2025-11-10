@@ -1,6 +1,6 @@
 import type { SDK } from "caido:plugin";
 
-import { executeGraphQLQuery } from "../graphql";
+import { executeGraphQLQueryviaSDK } from "../graphql";
 import {
   CREATE_REPLAY_SESSION_COLLECTION_MUTATION,
   getDefaultReplayCollectionsQuery,
@@ -345,7 +345,7 @@ export const rename_replay_collection = async (sdk: SDK, input: any) => {
         name: newName,
       };
 
-      const result = await executeGraphQLQuery(sdk, {
+      const result = await executeGraphQLQueryviaSDK(sdk, {
         query,
         variables,
         operationName: "renameReplaySessionCollection",
@@ -415,7 +415,7 @@ export const rename_replay_session = async (sdk: SDK, input: any) => {
     };
 
     try {
-      const result = await executeGraphQLQuery(sdk, {
+      const result = await executeGraphQLQueryviaSDK(sdk, {
         query: mutation,
         variables: variables,
         operationName: "renameReplaySession",
@@ -477,7 +477,7 @@ export const graphql_collection_requests = async (sdk: SDK, input: any) => {
     sdk.console.log("Variables:", JSON.stringify(queryVariables, null, 2));
 
     // Execute the GraphQL query using our helper function
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query: queryToExecute,
       variables: queryVariables,
       operationName: "replaySessionCollections",
@@ -605,7 +605,7 @@ export const graphql_list_collections = async (sdk: SDK, input: any) => {
     sdk.console.log("Listing all replay collections using GraphQL API...");
 
     // Execute the GraphQL query using our helper function
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query: getDefaultReplayCollectionsQuery(),
       variables: {},
       operationName: "replaySessionCollections",
@@ -721,7 +721,7 @@ export const list_replay_connections = async (sdk: SDK, input: any) => {
     );
 
     // Execute the GraphQL query using our helper function
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query: getDefaultReplayCollectionsQuery(),
       variables: {},
       operationName: "replaySessionCollections",
@@ -859,7 +859,7 @@ export const create_replay_collection = async (sdk: SDK, input: any) => {
     };
 
     try {
-      const result = await executeGraphQLQuery(sdk, {
+      const result = await executeGraphQLQueryviaSDK(sdk, {
         query: mutation,
         variables: variables,
         operationName: "createReplaySessionCollection",
@@ -886,9 +886,7 @@ export const create_replay_collection = async (sdk: SDK, input: any) => {
         };
       } else {
         return {
-          error:
-            result.error ||
-            "Failed to create collection - no collection data returned",
+          error: JSON.stringify(result),
           summary: "Collection creation failed",
         };
       }
@@ -938,7 +936,7 @@ export const move_replay_session = async (sdk: SDK, input: any) => {
       collectionId: collectionId,
     };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       variables,
       operationName: "moveReplaySession",
@@ -1035,7 +1033,7 @@ export const start_replay_task = async (sdk: SDK, input: any) => {
       },
     };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       variables,
       operationName: "startReplayTask",

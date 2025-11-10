@@ -1,6 +1,6 @@
 import type { SDK } from "caido:plugin";
 
-import { executeGraphQLQuery } from "../graphql";
+import { executeGraphQLQueryviaSDK } from "../graphql";
 import {
   CREATE_FILTER_PRESET_MUTATION,
   DELETE_FILTER_PRESET_MUTATION,
@@ -13,7 +13,7 @@ export const list_filter_presets = async (sdk: SDK, input: any) => {
     // Use imported GraphQL query for listing filter presets
     const query = FILTER_PRESETS_QUERY;
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       operationName: "filterPresets",
     });
@@ -76,7 +76,7 @@ export const create_filter_preset = async (sdk: SDK, input: any) => {
       },
     };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       variables,
       operationName: "createFilterPreset",
@@ -167,7 +167,7 @@ export const update_filter_preset = async (sdk: SDK, input: any) => {
       input: updateInput,
     };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       variables,
       operationName: "updateFilterPreset",
@@ -244,7 +244,7 @@ export const delete_filter_preset = async (sdk: SDK, input: any) => {
       id: filterId,
     };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       variables,
       operationName: "deleteFilterPreset",

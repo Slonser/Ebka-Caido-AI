@@ -1,6 +1,6 @@
 import type { SDK } from "caido:plugin";
 
-import { executeGraphQLQuery } from "../graphql";
+import { executeGraphQLQueryviaSDK } from "../graphql";
 import {
   WEBSOCKET_MESSAGE_COUNT_QUERY,
   WEBSOCKET_MESSAGE_QUERY,
@@ -24,7 +24,7 @@ export const list_websocket_streams = async (sdk: SDK, input: any) => {
       order: order,
     };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       variables,
       operationName: "websocketStreamsByOffset",
@@ -88,7 +88,7 @@ export const get_websocket_message_count = async (sdk: SDK, input: any) => {
       streamId: streamId,
     };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       variables,
       operationName: "websocketMessageCount",
@@ -154,7 +154,7 @@ export const get_websocket_message = async (sdk: SDK, input: any) => {
       id: messageId,
     };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       variables,
       operationName: "websocketMessageEdit",

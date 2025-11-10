@@ -1,6 +1,6 @@
 import type { SDK } from "caido:plugin";
 
-import { executeGraphQLQuery } from "../graphql";
+import { executeGraphQLQueryviaSDK } from "../graphql";
 import {
   DELETE_FINDINGS_MUTATION,
   FINDINGS_BY_OFFSET_QUERY,
@@ -37,7 +37,7 @@ export const update_finding = async (sdk: SDK, input: any) => {
       input: updateData,
     };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       variables,
       operationName: "updateFinding",
@@ -118,7 +118,7 @@ export const delete_findings = async (sdk: SDK, input: any) => {
       },
     };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       variables,
       operationName: "deleteFindings",
@@ -183,7 +183,7 @@ export const list_findings = async (sdk: SDK, input: any) => {
       order: input.order || { by: "ID", ordering: "DESC" },
     };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       variables,
       operationName: "getFindingsByOffset",
@@ -253,7 +253,7 @@ export const get_finding_by_id = async (sdk: SDK, input: any) => {
       id: findingId,
     };
 
-    const result = await executeGraphQLQuery(sdk, {
+    const result = await executeGraphQLQueryviaSDK(sdk, {
       query,
       variables,
       operationName: "getFindingById",
