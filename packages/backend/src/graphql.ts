@@ -19,26 +19,26 @@ export interface GraphQLResponse<T = any> {
 }
 
 /**
- * Get the saved Caido auth token from database
+ * Get the saved Caido PAT (Personal Access Token) from database
  */
-export const getCaidoAuthToken = async (sdk: SDK): Promise<string | null> => {
+export const getCaidoPAT = async (sdk: SDK): Promise<string | null> => {
   try {
     const db = await sdk.meta.db();
     const stmt = await db.prepare(
       "SELECT key_value FROM api_keys WHERE key_name = ?",
     );
-    const result = await stmt.get("caido-auth-token");
+    const result = await stmt.get("caido-pat");
 
     if (!result || typeof result !== "object" || !("key_value" in result)) {
-      sdk.console.log("No Caido auth token found in database");
+      sdk.console.log("No Caido PAT found in database");
       return null;
     }
 
-    const token = (result as any).key_value;
-    sdk.console.log(`Found Caido auth token: ${token.substring(0, 8)}...`);
-    return token;
+    const pat = (result as any).key_value;
+    sdk.console.log(`Found Caido PAT: ${pat.substring(0, 8)}...`);
+    return pat;
   } catch (error) {
-    sdk.console.error("Error getting Caido auth token:", error);
+    sdk.console.error("Error getting Caido PAT:", error);
     return null;
   }
 };
@@ -65,97 +65,6 @@ export const getCaidoApiEndpoint = async (sdk: SDK): Promise<string | null> => {
   } catch (error) {
     sdk.console.error("Error getting Caido API endpoint:", error);
     return null;
-  }
-};
-
-// TODO: delete this function
-/**
- * Execute a GraphQL query using the saved auth token
- */
-export const executeGraphQLQuery = async <T = any>(
-  sdk: SDK,
-  options: GraphQLOptions,
-): Promise<{
-  success: boolean;
-  data?: T;
-  error?: string;
-  response?: GraphQLResponse<T>;
-}> => {
-  try {
-    const { query, variables = {}, operationName } = options;
-    let apiEndpoint = options.apiEndpoint;
-    // Get the auth token
-    const authToken = await getCaidoAuthToken(sdk);
-    if (!authToken) {
-      return {
-        success: false,
-        error:
-          "No Caido auth token found. Please set the auth token first using request-auth-token event.",
-      };
-    }
-
-    // If no API endpoint provided, try to get the saved one, otherwise use default
-    if (!apiEndpoint) {
-      const savedEndpoint = await getCaidoApiEndpoint(sdk);
-      apiEndpoint = savedEndpoint || "http://localhost:8080/graphql";
-    }
-
-    sdk.console.log(`Executing GraphQL query to ${apiEndpoint}...`);
-    sdk.console.log("Query:", query.substring(0, 100) + "...");
-    sdk.console.log("Variables:", JSON.stringify(variables, null, 2));
-
-    // Execute the GraphQL query
-    const response = await fetch(apiEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-        Accept:
-          "application/graphql-response+json, application/graphql+json, application/json",
-      },
-      body: JSON.stringify({
-        operationName,
-        query,
-        variables,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `HTTP error! status: ${response.status}, body: ${errorText}`,
-      );
-    }
-
-    const responseData = (await response.json()) as GraphQLResponse<T>;
-    sdk.console.log("GraphQL response received successfully");
-
-    // Check for GraphQL errors
-    if (responseData.errors && responseData.errors.length > 0) {
-      const errorMessages = responseData.errors
-        .map((e) => e.message)
-        .join("; ");
-      return {
-        success: false,
-        error: `GraphQL errors: ${errorMessages}`,
-        response: responseData,
-      };
-    }
-
-    return {
-      success: true,
-      data: responseData.data,
-      response: responseData,
-    };
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    sdk.console.error(`Error executing GraphQL query: ${errorMessage}`);
-
-    return {
-      success: false,
-      error: `Failed to execute GraphQL query: ${errorMessage}`,
-    };
   }
 };
 

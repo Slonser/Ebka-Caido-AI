@@ -12,21 +12,6 @@ export const createSession = async (sdk: SDK, name: string) => {
       `New session created: ${name} with ID ${result.lastInsertRowid}`,
     );
 
-    // Trigger request-auth-token event after creating session
-    try {
-      sdk.console.log(
-        "🔐 Triggering request-auth-token event after session creation...",
-      );
-      // @ts-ignore - We know this method exists
-      sdk.api.send("request-auth-token", {
-        source: "createSession",
-        timestamp: Date.now(),
-        message: "Requesting auth token after session creation",
-      });
-    } catch (eventError) {
-      sdk.console.log("Note: Could not trigger request-auth-token event");
-    }
-
     return {
       success: true,
       sessionId: result.lastInsertRowid,

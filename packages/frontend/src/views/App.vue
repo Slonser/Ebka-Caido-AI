@@ -6,55 +6,6 @@ import { useSDK } from "@/plugins/sdk";
 
 // Retrieve the SDK instance to interact with the backend
 const sdk = useSDK();
-// @ts-ignore
-sdk.backend.onEvent("request-auth-token", async (data: any) => {
-  try {
-    // Get the access token from localStorage
-    const authData = localStorage.getItem("CAIDO_AUTHENTICATION");
-    console.log(
-      "Auth data from localStorage:",
-      authData ? "Found" : "Not found",
-    );
-
-    if (authData) {
-      const parsedAuth = JSON.parse(authData);
-      console.log("Parsed auth data available");
-
-      if (parsedAuth.accessToken) {
-        console.log("Access token found, sending to backend...");
-        console.log(
-          "Token preview:",
-          parsedAuth.accessToken.substring(0, 20) + "...",
-        );
-
-        // Send the access token and API endpoint to the backend
-        const apiEndpoint = `${window.location.origin}/graphql`;
-        // @ts-ignore
-        const result = await sdk.backend.sendAuthToken(
-          // @ts-ignore
-          parsedAuth.accessToken,
-          apiEndpoint,
-        );
-        console.log("📤 Backend response:", result);
-
-        if (result.success) {
-          console.log("Auth token successfully sent to backend");
-        } else {
-          console.error(
-            "Failed to send auth token to backend:",
-            result.message,
-          );
-        }
-      } else {
-        console.warn("No accessToken found in auth data");
-      }
-    } else {
-      console.warn("No CAIDO_AUTHENTICATION found in localStorage");
-    }
-  } catch (error) {
-    console.error("Error handling request-auth-token event:", error);
-  }
-});
 
 interface ChatMessage {
   id: number;
@@ -816,56 +767,6 @@ onMounted(async () => {
     await loadSessions();
   }
 });
-
-// Function to copy sendAuthToken request to clipboard
-const copySendAuthTokenRequest = async () => {
-  try {
-    const authData = localStorage.getItem("CAIDO_AUTHENTICATION");
-    if (!authData) {
-      sdk.window.showToast(
-        "No API key configured. Please set your API key first.",
-      );
-      return;
-    }
-
-    const parsedAuth = JSON.parse(authData);
-    if (!parsedAuth.accessToken) {
-      sdk.window.showToast(
-        "No access token found. Please set your API key first.",
-      );
-      return;
-    }
-
-    const requestText = `
-You need too help user in chat using Caido.
-Caido has the following modules:
-- **Filters** - Used for creating filters that users can later use in search using preset:alias
-- **Replay** - Consists of collections. Each collection contains sessions (requests). Users typically send interesting requests for user, and it's very important that both requests and collections are properly named so users don't get confused later.
-- **Match/Replace (Tamper)** - Consists of collections. Each collection contains rules. Needed so users can automatically modify requests or responses. Like with Replay, it's important to maintain proper naming.
-- **Findings** - Consists of discovered vulnerabilities. Users can create and view security findings.
-- **Scopes** - Consists of scopes. Usually bug hunters and pentesters are limited to a certain scope, on which they have the right to send requests. So sometimes it can be useful.
-
-For additional details, refer to the descriptions of the Caido tools that are loaded into you.
-
-
-
-First you need to send the following request to configure the connection:
-sendAuthToken request:
-token: ${parsedAuth.accessToken}
-host: ${window.location.origin}
-
-Then you need to check the version of the tools that are loaded into you:
-get_tools_version
-If version is different from the version of the tools that are loaded into you, INFORM USER.
-`;
-
-    await navigator.clipboard.writeText(requestText);
-    sdk.window.showToast("sendAuthToken request copied to clipboard!");
-  } catch (error) {
-    console.error("Error copying sendAuthToken request:", error);
-    sdk.window.showToast("Failed to copy sendAuthToken request.");
-  }
-};
 </script>
 
 <template>
@@ -892,18 +793,6 @@ If version is different from the version of the tools that are loaded into you, 
             Change Key
           </button>
         </div>
-      </div>
-
-      <!-- Claude Desktop MCP Button -->
-      <div class="claude-desktop-section">
-        <button
-          type="button"
-          class="claude-desktop-btn"
-          title="Copy sendAuthToken request for Claude Desktop"
-          @click="copySendAuthTokenRequest"
-        >
-          Copy MCP Request
-        </button>
       </div>
 
       <!-- Model Selector -->
@@ -1304,42 +1193,6 @@ If version is different from the version of the tools that are loaded into you, 
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.key-status {
-  color: #a0213e;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-/* Claude Desktop MCP Button */
-.claude-desktop-section {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.claude-desktop-btn {
-  padding: 8px 16px;
-  background: #a0213e;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.claude-desktop-btn:disabled {
-  background: #a0213e;
-  cursor: not-allowed;
-}
-
-.claude-desktop-btn .copy-icon {
-  font-size: 16px;
 }
 
 /* Model Selector */

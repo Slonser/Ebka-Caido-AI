@@ -174,21 +174,6 @@ export const sendMessage = async (
   sessionId?: number,
 ) => {
   try {
-    // Trigger request-auth-token event before processing message
-    try {
-      sdk.console.log(
-        "Triggering request-auth-token event before message processing...",
-      );
-      // @ts-ignore - We know this method exists
-      sdk.api.send("request-auth-token", {
-        source: "sendMessage",
-        timestamp: Date.now(),
-        message: "Requesting auth token before message processing",
-      });
-    } catch (eventError) {
-      sdk.console.log("Note: Could not trigger request-auth-token event");
-    }
-
     const claudeApiKey = await getClaudeApiKey(sdk);
 
     if (!claudeApiKey) {

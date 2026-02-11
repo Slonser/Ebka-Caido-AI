@@ -4,6 +4,7 @@
 
 _A powerful AI-powered assistant for Caido web application security testing, built with Claude AI_
 
+[![npm version](https://img.shields.io/npm/v/ebka-caido-ai)](https://www.npmjs.com/package/ebka-caido-ai)
 [![GitHub forks](https://img.shields.io/github/forks/Slonser/Ebka-Caido-AI?style=social)](https://github.com/Slonser/Ebka-Caido-AI/network/members)
 [![GitHub issues](https://img.shields.io/github/issues/Slonser/Ebka-Caido-AI)](https://github.com/Slonser/Ebka-Caido-AI/issues)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/Slonser/Ebka-Caido-AI)](https://github.com/Slonser/Ebka-Caido-AI/releases)
@@ -32,12 +33,12 @@ _A powerful AI-powered assistant for Caido web application security testing, bui
     - [**AI-Powered Intelligence**](#ai-powered-intelligence)
   - [Prerequisites](#prerequisites)
   - [Getting Started](#getting-started)
-    - [Method 1 - Claude Desktop (Extension Required)](#method-1---claude-desktop-extension-required)
-    - [Method 2 - Direct API Access (Requires API Key)](#method-2---direct-api-access-requires-api-key)
+    - [Method 1 - Claude Desktop via npx (Recommended)](#method-1---claude-desktop-via-npx-recommended)
+    - [Method 2 - Claude Desktop from Source](#method-2---claude-desktop-from-source)
+    - [Method 3 - Direct API Access (Requires API Key)](#method-3---direct-api-access-requires-api-key)
   - [Installation](#installation)
     - [Prerequisites](#prerequisites-1)
     - [Install from source:](#install-from-source)
-    - [For Claude Desktop Users](#for-claude-desktop-users)
   - [Usage](#usage)
   - [Contributing](#contributing)
   - [License](#license)
@@ -56,7 +57,7 @@ Ebka AI provides **30+ powerful Claude tools** for Caido:
 - **HTTPQL Query Search**: Advanced filtering and analysis using HTTPQL syntax
 - **Request/Response Viewing**: Inspect individual requests and responses by ID
 - **Custom Request Sending**: Send HTTP requests with full control over headers, body, and parameters
-- **Wesocket stream managment**: Read and analyze websocket streams
+- **WebSocket Stream Management**: Read and analyze WebSocket streams
 
 ### **Replay Session Management**
 - **Replay Collections**: Create, list, and manage replay session collections
@@ -87,57 +88,81 @@ Ebka AI provides **30+ powerful Claude tools** for Caido:
 ## Prerequisites
 
 - [Caido](https://caido.io/) web application security testing platform
+- [Node.js](https://nodejs.org/) (version 18 or higher) — for MCP server
 - For Direct Usage: Claude API key from [Anthropic Console](https://console.anthropic.com/settings/keys)
 
 ---
 
 ## Getting Started
 
-There are two ways to interact with the Caido AI Assistant:
+There are multiple ways to interact with the Caido AI Assistant:
 
-### Method 1 - Claude Desktop (Extension Required)
+### Method 1 - Claude Desktop via npx (Recommended)
 
-**Prerequisites:**
-- [Node.js](https://nodejs.org/) (version 16 or higher)
-- npm or pnpm package manager
+The easiest way to get started. No need to clone the repository or build anything.
 
-**Setup Steps:**
-1. **Install dependencies:**
+**Add to your `claude_desktop_config.json`:**
+
+```json
+{
+  "mcpServers": {
+    "caido": {
+      "command": "npx",
+      "args": ["-y", "ebka-caido-ai"],
+      "env": {
+        "CAIDO_BASE_URL": "http://localhost:8080"
+      }
+    }
+  }
+}
+```
+
+> **Note:** If Caido is running on a different port, update `CAIDO_BASE_URL` accordingly (e.g., `http://localhost:8081`).
+
+**Authenticate with Caido:**
+1. Open Claude Desktop and start a conversation
+2. When you try to use any Caido tool, Claude will automatically detect that authentication is required
+3. Use the `authenticate` tool to start the OAuth flow
+4. Claude will provide a verification URL — click it to authorize in your browser
+5. After authorizing, use the `check_authentication` tool to complete the setup
+6. The MCP server will automatically manage your authentication token
+
+**That's it!** You can now communicate with Caido through Claude.
+
+![Claude Desktop Integration](./static/claude-init.png)
+*Claude Desktop Integration*
+
+### Method 2 - Claude Desktop from Source
+
+If you prefer to build from source:
+
+1. **Clone and build:**
    ```bash
-   cd claude-mcp-server
+   git clone https://github.com/Slonser/Ebka-Caido-AI.git
+   cd Ebka-Caido-AI/claude-mcp-server
    npm install
-   # or if using pnpm:
-   # pnpm install
-   ```
-
-2. **Build the MCP server:**
-   ```bash
    npm run build
-   # or if using pnpm:
-   # pnpm build
    ```
 
-3. **Add to claude_desktop_config**:
+2. **Add to `claude_desktop_config.json`:**
    ```json
    {
      "mcpServers": {
        "caido": {
          "command": "node",
-         "args": ["/path/to/claude-mcp-server/build/index.js"]
+         "args": ["/path/to/Ebka-Caido-AI/claude-mcp-server/build/index.js"],
+         "env": {
+           "CAIDO_BASE_URL": "http://localhost:8080"
+         }
        }
      }
    }
    ```
-   **Note:** Replace `/path/to/` with the actual path to your project directory
+   Replace `/path/to/` with the actual path to your cloned repository.
 
-4. **Click "Copy MCP Request"** in the Caido plugin tab
-5. **Paste the request** in Claude to set the accessKey and API URL
-6. **Congratulations!** You can now communicate with Caido through Claude
+3. **Follow the same authentication steps** as described in Method 1.
 
-![Claude Desktop Integration](./static/claude-init.png)
-*Claude Desktop Integration*
-
-### Method 2 - Direct API Access (Requires API Key)
+### Method 3 - Direct API Access (Requires API Key)
 
 1. **Enter your API KEY** in the plugin tab
 2. **Use the functionality directly** from Caido without Claude Desktop
@@ -152,7 +177,7 @@ There are two ways to interact with the Caido AI Assistant:
 ### Prerequisites
 
 - [Caido](https://caido.io/) (latest version)
-- [Node.js](https://nodejs.org/) (version 16 or higher)
+- [Node.js](https://nodejs.org/) (version 18 or higher)
 - npm or pnpm package manager
 
 ### Install from source:
@@ -183,18 +208,6 @@ There are two ways to interact with the Caido AI Assistant:
    - Click "Install from file"
    - Select the built plugin file from the appropriate directory
 
-### For Claude Desktop Users
-
-If you're using Claude Desktop, you'll also need to build the MCP server:
-
-```bash
-cd claude-mcp-server
-npm install
-npm run build
-```
-
-Then update your `claude_desktop_config` with the correct path to the built server.
-
 ---
 
 ## Usage
@@ -205,7 +218,7 @@ Then update your `claude_desktop_config` with the correct path to the built serv
 
 2. **Configure your settings:**
    - Enter your Claude API key for direct usage
-   - Configure Claude Desktop integration if using the extension
+   - Configure Claude Desktop integration if using the MCP server
    - Set up your preferred security testing workflows
 
 3. **Use AI-powered features:**
@@ -236,5 +249,3 @@ This project is licensed under the GPL-3.0 License - see the [LICENSE](LICENSE) 
 <div align="center">
 Made with ❤️ for the Caido community and security researchers
 </div>
-
-

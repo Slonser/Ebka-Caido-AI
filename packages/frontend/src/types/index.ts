@@ -60,11 +60,33 @@ export interface BackendSDK {
   ) => Promise<{ role: string; content: string; timestamp: string }[]>;
   getProgramResult: (resultId: number) => Promise<any>;
   getToolExecutionState: (sessionId: number) => any;
-  sendAuthToken: (
-    accessToken: string,
+  setCaidoPAT: (
+    pat: string,
     apiEndpoint?: string,
   ) => Promise<{ success: boolean; message?: string }>;
+  getCaidoPAT: () => Promise<string | null>;
+  startAuthenticationFlow: () => Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+  }>;
+  checkAuthenticationState: (requestId: string) => Promise<{
+    success: boolean;
+    ready?: boolean;
+    state?: string;
+    data?: any;
+    error?: string;
+  }>;
+  saveAuthenticationToken: (
+    accessToken: string,
+    refreshToken?: string,
+    expiresAt?: string,
+  ) => Promise<{ success: boolean; message?: string; error?: string }>;
   claudeDesktop: (toolName: string, args: any) => any;
+}
+
+export interface GraphQLSDK {
+  execute: (query: string, variables?: any) => Promise<any>;
 }
 
 export interface ReplaySDK {

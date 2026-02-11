@@ -1,5 +1,4 @@
 export const tools_version = "0.1.0";
-
 export const tools_description = [
   {
     name: "list_by_httpql",
@@ -214,7 +213,6 @@ Example:
       required: ["session_id", "new_name"],
     },
   },
-
   {
     name: "graphql_collection_requests",
     description:

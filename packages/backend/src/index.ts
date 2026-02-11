@@ -4,10 +4,14 @@ import type { DefineAPI, SDK } from "caido:plugin";
 // Import functions from modules
 import { sendMessage } from "./chat";
 import {
+  checkAuthenticationState,
+  getCaidoPAT,
   getProgramResult,
   initializeDatabase,
-  sendAuthToken,
+  saveAuthenticationToken,
+  setCaidoPAT,
   setClaudeApiKey,
+  startAuthenticationFlow,
 } from "./database";
 import { handlers } from "./handlers";
 import { getAvailableModels } from "./models";
@@ -71,35 +75,36 @@ export type API = DefineAPI<{
   ) => Promise<{ role: string; content: string; timestamp: string }[]>;
   getProgramResult: (resultId: number) => Promise<any>;
   getToolExecutionState: (sessionId: number) => any;
-  sendAuthToken: (
-    accessToken: string,
+  setCaidoPAT: (
+    pat: string,
     apiEndpoint?: string,
   ) => Promise<{ success: boolean; message?: string }>;
+  getCaidoPAT: () => Promise<string | null>;
+  startAuthenticationFlow: () => Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+  }>;
+  checkAuthenticationState: (requestId: string) => Promise<{
+    success: boolean;
+    ready?: boolean;
+    state?: string;
+    data?: any;
+    error?: string;
+  }>;
+  saveAuthenticationToken: (
+    accessToken: string,
+    refreshToken?: string,
+    expiresAt?: string,
+  ) => Promise<{ success: boolean; message?: string; error?: string }>;
   claudeDesktop: (toolName: string, args: string) => any;
 }>;
 
-export type Events = {
-  "request-auth-token": { source: string; timestamp: number; message: string };
-  "auth-token-saved": { success: boolean; timestamp: number; message: string };
-};
+export type Events = {};
 
 export function init(sdk: SDK<API, Events>) {
   // Initialize database when plugin starts
   initializeDatabase(sdk);
-
-  // Trigger request-auth-token event to get auth token from frontend
-  setTimeout(() => {
-    try {
-      sdk.console.log("🔐 Triggering request-auth-token event...");
-      sdk.api.send("request-auth-token", {
-        source: "backend",
-        timestamp: Date.now(),
-        message: "Requesting auth token from frontend",
-      });
-    } catch (error) {
-      sdk.console.error("❌ Error triggering request-auth-token event:", error);
-    }
-  }, 1000); // Delay 1 second to ensure frontend is ready
 
   sdk.api.register("setClaudeApiKey", setClaudeApiKey);
   sdk.api.register("sendMessage", sendMessage);
@@ -114,9 +119,23 @@ export function init(sdk: SDK<API, Events>) {
     getToolExecutionState(sessionId),
   );
   sdk.api.register(
-    "sendAuthToken",
-    (sdk: any, accessToken: string, apiEndpoint?: string) =>
-      sendAuthToken(sdk, accessToken, apiEndpoint),
+    "setCaidoPAT",
+    (sdk: any, pat: string, apiEndpoint?: string) =>
+      setCaidoPAT(sdk, pat, apiEndpoint),
+  );
+  sdk.api.register("getCaidoPAT", getCaidoPAT);
+  sdk.api.register("startAuthenticationFlow", startAuthenticationFlow);
+  sdk.api.register("checkAuthenticationState", (sdk: any, requestId: string) =>
+    checkAuthenticationState(sdk, requestId),
+  );
+  sdk.api.register(
+    "saveAuthenticationToken",
+    (
+      sdk: any,
+      accessToken: string,
+      refreshToken?: string,
+      expiresAt?: string,
+    ) => saveAuthenticationToken(sdk, accessToken, refreshToken, expiresAt),
   );
   sdk.api.register("claudeDesktop", desktopIntegration);
 }

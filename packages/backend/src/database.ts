@@ -109,21 +109,6 @@ export const setClaudeApiKey = async (sdk: SDK, apiKey: string) => {
 
     sdk.console.log(`Claude API Key saved: ${apiKey.substring(0, 8)}...`);
 
-    // Trigger request-auth-token event after setting API key
-    try {
-      sdk.console.log(
-        "🔐 Triggering request-auth-token event after API key setup...",
-      );
-      // @ts-ignore
-      sdk.api.send("request-auth-token", {
-        source: "setClaudeApiKey",
-        timestamp: Date.now(),
-        message: "Requesting auth token after API key setup",
-      });
-    } catch (eventError) {
-      sdk.console.log("Note: Could not trigger request-auth-token event");
-    }
-
     return { success: true, message: "API Key saved successfully" };
   } catch (error) {
     return {
@@ -220,19 +205,19 @@ export const getProgramResult = async (sdk: SDK, resultId: number) => {
   }
 };
 
-export const sendAuthToken = async (
+export const setCaidoPAT = async (
   sdk: SDK,
-  accessToken: string,
+  pat: string,
   apiEndpoint?: string,
 ) => {
   try {
-    // Store the access token in the database for future use
+    // Store the PAT (Personal Access Token) in the database
     const db = await sdk.meta.db();
 
     const stmt = await db.prepare(
       `INSERT OR REPLACE INTO api_keys (key_name, key_value) VALUES (?, ?)`,
     );
-    await stmt.run("caido-auth-token", accessToken);
+    await stmt.run("caido-pat", pat);
 
     // Store the API endpoint if provided
     if (apiEndpoint) {
@@ -243,18 +228,181 @@ export const sendAuthToken = async (
       sdk.console.log(`Caido API endpoint saved: ${apiEndpoint}`);
     }
 
-    sdk.console.log(
-      `Caido auth token saved: ${accessToken.substring(0, 8)}...`,
-    );
+    sdk.console.log(`Caido PAT saved: ${pat.substring(0, 8)}...`);
     return {
       success: true,
-      message: "Auth token and API endpoint saved successfully",
+      message: "PAT and API endpoint saved successfully",
+    };
+  } catch (error) {
+    sdk.console.error("Error saving PAT:", error);
+    return {
+      success: false,
+      message: `Failed to save PAT: ${error instanceof Error ? error.message : "Unknown error"}`,
+    };
+  }
+};
+
+export const getCaidoPAT = async (sdk: SDK): Promise<string | null> => {
+  try {
+    const db = await sdk.meta.db();
+    const stmt = await db.prepare(
+      "SELECT key_value FROM api_keys WHERE key_name = ?",
+    );
+    const result = await stmt.get("caido-pat");
+
+    if (!result || typeof result !== "object" || !("key_value" in result)) {
+      return null;
+    }
+
+    return (result as any).key_value;
+  } catch (error) {
+    sdk.console.error("Error getting Caido PAT:", error);
+    return null;
+  }
+};
+
+export const startAuthenticationFlow = async (sdk: SDK) => {
+  try {
+    // @ts-ignore
+    const result: any = await sdk.graphql.execute(
+      `mutation StartAuthenticationFlow {
+        startAuthenticationFlow {
+          request {
+            id
+            expiresAt
+            userCode
+            verificationUrl
+          }
+        }
+      }`,
+      {},
+    );
+
+    if (result.errors) {
+      return {
+        success: false,
+        error: result.errors.map((e: any) => e.message).join("; "),
+      };
+    }
+
+    return {
+      success: true,
+      data: result.data?.startAuthenticationFlow?.request,
+    };
+  } catch (error) {
+    sdk.console.error("Error starting auth flow:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+};
+
+export const checkAuthenticationState = async (sdk: SDK, requestId: string) => {
+  try {
+    // @ts-ignore
+    const result: any = await sdk.graphql.execute(
+      `query GetAuthState($requestId: ID!) {
+        authenticationState(id: $requestId) {
+          state
+        }
+      }`,
+      { requestId },
+    );
+
+    if (result.errors) {
+      return {
+        success: false,
+        error: result.errors.map((e: any) => e.message).join("; "),
+      };
+    }
+
+    const state = result.data?.authenticationState?.state;
+
+    if (state === "SUCCESS") {
+      // Try to get the token
+      // @ts-ignore
+      const tokenResult: any = await sdk.graphql.execute(
+        `query GetAuthToken($requestId: ID!) {
+          authenticationToken(id: $requestId) {
+            accessToken
+            refreshToken
+            expiresAt
+          }
+        }`,
+        { requestId },
+      );
+
+      if (tokenResult.errors) {
+        return {
+          success: false,
+          error: tokenResult.errors.map((e: any) => e.message).join("; "),
+        };
+      }
+
+      const token = tokenResult.data?.authenticationToken;
+      if (token?.accessToken) {
+        // Save token
+        await setCaidoPAT(sdk, token.accessToken);
+
+        if (token.refreshToken) {
+          const db = await sdk.meta.db();
+          const stmt = await db.prepare(
+            `INSERT OR REPLACE INTO api_keys (key_name, key_value) VALUES (?, ?)`,
+          );
+          await stmt.run("caido-refresh-token", token.refreshToken);
+        }
+
+        return {
+          success: true,
+          ready: true,
+          data: token,
+        };
+      }
+    }
+
+    return {
+      success: true,
+      ready: false,
+      state: state,
+    };
+  } catch (error) {
+    sdk.console.error("Error checking auth state:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+};
+
+export const saveAuthenticationToken = async (
+  sdk: SDK,
+  accessToken: string,
+  refreshToken?: string,
+  expiresAt?: string,
+) => {
+  try {
+    // Save the access token as PAT
+    await setCaidoPAT(sdk, accessToken);
+
+    // Optionally save refresh token and expiry
+    if (refreshToken) {
+      const db = await sdk.meta.db();
+      const stmt = await db.prepare(
+        `INSERT OR REPLACE INTO api_keys (key_name, key_value) VALUES (?, ?)`,
+      );
+      await stmt.run("caido-refresh-token", refreshToken);
+    }
+
+    return {
+      success: true,
+      message: "Authentication token saved successfully",
     };
   } catch (error) {
     sdk.console.error("Error saving auth token:", error);
     return {
       success: false,
-      message: `Failed to save auth token: ${error instanceof Error ? error.message : "Unknown error"}`,
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 };
