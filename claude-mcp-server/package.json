@@ -1,26 +1,52 @@
 {
-  "name": "claude-mcp-server",
+  "name": "ebka-caido-ai",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "MCP server for Caido - AI-powered security testing assistant",
+  "main": "build/index.js",
   "type": "module",
   "bin": {
-    "caido-mcp": "./build/index.js"
+    "ebka-caido-ai": "./build/index.js"
   },
   "scripts": {
-    "build": "tsc && chmod 755 build/index.js"
+    "build": "tsc && chmod 755 build/index.js",
+    "prepare": "npm run build"
   },
-  "files": ["build"],
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "files": [
+    "build"
+  ],
+  "keywords": [
+    "caido",
+    "mcp",
+    "security",
+    "pentesting",
+    "ai",
+    "claude",
+    "model-context-protocol"
+  ],
+  "author": "Slonser",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Slonser/Ebka-Caido-AI",
+    "directory": "claude-mcp-server"
+  },
+  "homepage": "https://github.com/Slonser/Ebka-Caido-AI#readme",
+  "bugs": {
+    "url": "https://github.com/Slonser/Ebka-Caido-AI/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.2",
     "axios": "^1.6.0",
+    "graphql-ws": "^6.0.7",
+    "ws": "^8.19.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^24.2.1",
+    "@types/ws": "^8.18.1",
     "typescript": "^5.9.2"
   }
 }
