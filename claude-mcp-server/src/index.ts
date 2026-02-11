@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 
-import { appendFileSync, writeFileSync } from "fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "fs";
+import { homedir } from "os";
+import { join } from "path";
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -14,6 +22,19 @@ import { createClient } from "graphql-ws";
 import WebSocket from "ws";
 
 import { tools_description, tools_version } from "./tools.js";
+
+// Token storage path
+const TOKEN_DIR = join(homedir(), ".ebka-caido");
+const TOKEN_FILE = join(TOKEN_DIR, "token.json");
+
+// Saved token structure
+interface SavedToken {
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt?: string;
+  baseUrl: string;
+  savedAt: string;
+}
 
 // Configuration for connecting to Caido plugin
 const CAIDO_CONFIG = {
@@ -39,13 +60,138 @@ function logToFile(message: string, level: string = "INFO") {
   }
   const timestamp = new Date().toISOString();
   const logEntry = `[${timestamp}] [${level}] ${message}\n`;
-  const logPath = "~/tmp/log-caido.txt";
+  const logPath = join(homedir(), "tmp", "log-caido.txt");
 
   try {
     appendFileSync(logPath, logEntry, { encoding: "utf8" });
   } catch (error) {
     console.error(`Failed to write to log file: ${error}`);
   }
+}
+
+// --- Token persistence ---
+
+function saveTokenToDisk(token: any): void {
+  try {
+    if (!existsSync(TOKEN_DIR)) {
+      mkdirSync(TOKEN_DIR, { recursive: true, mode: 0o700 });
+    }
+    const savedToken: SavedToken = {
+      accessToken: token.accessToken,
+      refreshToken: token.refreshToken,
+      expiresAt: token.expiresAt,
+      baseUrl: CAIDO_CONFIG.baseUrl,
+      savedAt: new Date().toISOString(),
+    };
+    writeFileSync(TOKEN_FILE, JSON.stringify(savedToken, null, 2), {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+    logToFile("Token saved to disk");
+  } catch (error) {
+    logToFile(`Failed to save token to disk: ${error}`, "ERROR");
+  }
+}
+
+function loadTokenFromDisk(): SavedToken | null {
+  try {
+    if (!existsSync(TOKEN_FILE)) {
+      logToFile("No saved token file found");
+      return null;
+    }
+    const data = readFileSync(TOKEN_FILE, { encoding: "utf8" });
+    const saved: SavedToken = JSON.parse(data);
+
+    // Only load if the token was saved for the same Caido instance
+    if (saved.baseUrl !== CAIDO_CONFIG.baseUrl) {
+      logToFile(
+        `Saved token is for ${saved.baseUrl}, current instance is ${CAIDO_CONFIG.baseUrl} — skipping`,
+      );
+      return null;
+    }
+
+    logToFile("Loaded saved token from disk");
+    return saved;
+  } catch (error) {
+    logToFile(`Failed to load token from disk: ${error}`, "ERROR");
+    return null;
+  }
+}
+
+function isTokenExpired(expiresAt?: string): boolean {
+  if (!expiresAt) return false; // If no expiry, assume it's valid
+  const expiry = new Date(expiresAt).getTime();
+  const now = Date.now();
+  // Consider expired if less than 5 minutes remain
+  return now >= expiry - 5 * 60 * 1000;
+}
+
+// --- Refresh token flow ---
+
+async function refreshAccessToken(refreshToken: string): Promise<any> {
+  logToFile("Attempting to refresh access token");
+
+  const graphqlQuery = {
+    query: `mutation RefreshAuthenticationToken($refreshToken: Token!) {
+      refreshAuthenticationToken(refreshToken: $refreshToken) {
+        token {
+          accessToken
+          refreshToken
+          expiresAt
+        }
+      }
+    }`,
+    variables: { refreshToken },
+  };
+
+  const response = await axios.post(
+    `${CAIDO_CONFIG.baseUrl}/graphql`,
+    graphqlQuery,
+    { headers: { "Content-Type": "application/json" } },
+  );
+
+  if (response.data.errors) {
+    throw new Error(
+      `Refresh failed: ${response.data.errors.map((e: any) => e.message).join("; ")}`,
+    );
+  }
+
+  const token = response.data.data?.refreshAuthenticationToken?.token;
+  if (!token?.accessToken) {
+    throw new Error("No token returned from refresh");
+  }
+
+  logToFile("Token refreshed successfully");
+  return token;
+}
+
+// Ensure we have a valid token, refreshing if needed
+async function ensureValidToken(): Promise<boolean> {
+  // If we have a token and it's not expired, we're good
+  if (CAIDO_CONFIG.authToken && !isTokenExpired(receivedToken?.expiresAt)) {
+    return true;
+  }
+
+  // Token is expired or missing — try to refresh
+  const saved = receivedToken || loadTokenFromDisk();
+  if (saved?.refreshToken) {
+    try {
+      const newToken = await refreshAccessToken(saved.refreshToken);
+      CAIDO_CONFIG.authToken = newToken.accessToken;
+      receivedToken = newToken;
+      saveTokenToDisk(newToken);
+      logToFile("Token refreshed and saved");
+      return true;
+    } catch (error) {
+      logToFile(`Token refresh failed: ${error}`, "ERROR");
+      // Clear stale token
+      CAIDO_CONFIG.authToken = undefined;
+      receivedToken = null;
+      return false;
+    }
+  }
+
+  return !!CAIDO_CONFIG.authToken;
 }
 
 // Function to get information about available plugins via GraphQL
@@ -364,6 +510,7 @@ function startTokenSubscription(requestId: string) {
             CAIDO_CONFIG.authToken = token.accessToken;
             receivedToken = token;
             pendingAuthRequest = null;
+            saveTokenToDisk(token);
             client.dispose();
           }
         },
@@ -404,10 +551,13 @@ Caido has the following modules:
 - **Findings** - Consists of discovered vulnerabilities. Users can create and view security findings.
 - **Scopes** - Consists of scopes. Usually bug hunters and pentesters are limited to a certain scope, on which they have the right to send requests. So sometimes it can be useful.
 
-IMPORTANT: Before using any Caido tools, you MUST authenticate first:
-1. Use the "authenticate" tool to start the OAuth flow - it will give the user a verification URL
-2. After the user confirms they've authorized, use "check_authentication" to complete the setup
-3. Once authenticated, all other tools will work automatically
+IMPORTANT: The MCP server automatically manages authentication tokens:
+- On startup, it loads saved tokens from disk and refreshes them if expired
+- If no saved token is available, you MUST authenticate:
+  1. Use the "authenticate" tool to start the OAuth flow - it will give the user a verification URL
+  2. After the user confirms they've authorized, use "check_authentication" to complete the setup
+- Once authenticated, tokens are saved to disk and reused across sessions automatically
+- If a tool fails with an auth error, try "authenticate" again
 
 After authenticating, check the tools version with "get_tools_version".`;
 
@@ -474,6 +624,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   );
 
   try {
+    // Auto-refresh token before tool calls (except auth tools)
+    if (name !== "authenticate" && name !== "check_authentication") {
+      await ensureValidToken();
+    }
+
     let result: any;
 
     if (name === "authenticate") {
@@ -636,6 +791,30 @@ Please use the \`authenticate\` tool to start the OAuth authentication flow.`,
 // Start server
 async function main() {
   logToFile("Starting Caido MCP Server");
+
+  // Try to load saved token on startup
+  if (!CAIDO_CONFIG.authToken) {
+    const saved = loadTokenFromDisk();
+    if (saved) {
+      if (isTokenExpired(saved.expiresAt) && saved.refreshToken) {
+        logToFile("Saved token is expired, attempting refresh...");
+        try {
+          const newToken = await refreshAccessToken(saved.refreshToken);
+          CAIDO_CONFIG.authToken = newToken.accessToken;
+          receivedToken = newToken;
+          saveTokenToDisk(newToken);
+          logToFile("Token refreshed on startup");
+        } catch (error) {
+          logToFile(`Token refresh on startup failed: ${error}`, "ERROR");
+        }
+      } else {
+        CAIDO_CONFIG.authToken = saved.accessToken;
+        receivedToken = saved;
+        logToFile("Using saved token from disk");
+      }
+    }
+  }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   logToFile("Caido MCP Server started successfully");
