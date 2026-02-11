@@ -100,6 +100,7 @@ export type API = DefineAPI<{
   claudeDesktop: (toolName: string, args: string) => any;
 }>;
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type Events = {};
 
 export function init(sdk: SDK<API, Events>) {
