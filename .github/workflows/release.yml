@@ -35,14 +35,11 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm
 
-      - name: Setup mise
-        uses: jdx/mise-action@v2
-
       - name: Install dependencies
         run: pnpm install
 
       - name: Build package
-        run: mise run build
+        run: pnpm build
 
       - name: Sign package
         working-directory: dist
