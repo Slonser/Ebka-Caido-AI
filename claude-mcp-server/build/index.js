@@ -434,7 +434,7 @@ After authenticating, check the tools version with "get_tools_version".`;
 // Create MCP server
 const server = new Server({
     name: "caido-mcp-server",
-    version: "1.0.1",
+    version: "1.0.2",
 }, {
     capabilities: {
         tools: {},
