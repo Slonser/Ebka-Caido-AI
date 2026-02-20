@@ -1029,6 +1029,7 @@ export const start_replay_task = async (sdk: SDK, input: any) => {
         settings: {
           placeholders: settings.placeholders || [],
           updateContentLength: settings.updateContentLength !== false,
+          connectionClose: settings.connectionClose !== undefined ? settings.connectionClose : false,
         },
       },
     };

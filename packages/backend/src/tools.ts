@@ -1,4 +1,4 @@
-export const tools_version = "0.1.0";
+export const tools_version = "0.1.1";
 export const tools_description = [
   {
     name: "list_by_httpql",
@@ -473,6 +473,23 @@ Example:
           description:
             "Optional HTTPQL condition for when the rule should be applied",
         },
+        sources: {
+          type: "array",
+          description:
+            "List of traffic sources the rule applies to. Possible values: INTERCEPT, REPLAY, AUTOMATE, WORKFLOW, SAMPLE, PLUGIN, IMPORT. Defaults to all sources if not specified.",
+          items: {
+            type: "string",
+            enum: [
+              "INTERCEPT",
+              "REPLAY",
+              "AUTOMATE",
+              "WORKFLOW",
+              "SAMPLE",
+              "PLUGIN",
+              "IMPORT",
+            ],
+          },
+        },
       },
       required: ["collection_id", "name", "section"],
     },
@@ -602,6 +619,23 @@ Example:
           type: "string",
           description:
             "Optional HTTPQL condition for when the rule should be applied",
+        },
+        sources: {
+          type: "array",
+          description:
+            "List of traffic sources the rule applies to. Possible values: INTERCEPT, REPLAY, AUTOMATE, WORKFLOW, SAMPLE, PLUGIN, IMPORT. Defaults to all sources if not specified.",
+          items: {
+            type: "string",
+            enum: [
+              "INTERCEPT",
+              "REPLAY",
+              "AUTOMATE",
+              "WORKFLOW",
+              "SAMPLE",
+              "PLUGIN",
+              "IMPORT",
+            ],
+          },
         },
       },
       required: ["rule_id"],
@@ -882,6 +916,11 @@ Example:
               type: "boolean",
               description:
                 "Whether to automatically update Content-Length header",
+            },
+            connectionClose: {
+              type: "boolean",
+              description:
+                "Whether to close the connection after the request (default: false)",
             },
           },
         },

@@ -116,11 +116,22 @@ export const create_tamper_rule = async (sdk: SDK, input: any) => {
     // This mutation uses named fragments including error handling, so we need to include them
     const mutation = CREATE_TAMPER_RULE + "\n" + getRuleFragments();
 
+    const sources = input.sources || [
+      "INTERCEPT",
+      "REPLAY",
+      "AUTOMATE",
+      "WORKFLOW",
+      "SAMPLE",
+      "PLUGIN",
+      "IMPORT",
+    ];
+
     const variables = {
       input: {
         collectionId: collectionId,
         name: name,
         section: section,
+        sources: sources,
         ...(condition && { condition: condition }),
       },
     };
@@ -238,6 +249,15 @@ export const update_tamper_rule = async (sdk: SDK, input: any) => {
     if (name) updateInput.name = name;
     if (section) updateInput.section = section;
     if (condition !== undefined) updateInput.condition = condition;
+    updateInput.sources = input.sources || [
+      "INTERCEPT",
+      "REPLAY",
+      "AUTOMATE",
+      "WORKFLOW",
+      "SAMPLE",
+      "PLUGIN",
+      "IMPORT",
+    ];
 
     const variables = {
       id: ruleId,

@@ -348,14 +348,21 @@ async function findCaidoPlugin(): Promise<string> {
   logToFile("Searching for Caido AI Assistant plugin");
   const pluginPackages = await getPluginInfo();
   if (pluginPackages && pluginPackages.length > 0) {
+    logToFile(
+      `Found ${pluginPackages.length} packages: ${pluginPackages.map((p: any) => `${p.name} (${p.manifestId})`).join(", ")}`,
+    );
+
     const caidoPackage = pluginPackages.find(
       (pkg: any) =>
-        pkg.name === "Ebka AI Assistant" || pkg.name?.includes("Ebka"),
+        pkg.name === "Ebka AI Assistant" ||
+        pkg.name?.includes("Ebka") ||
+        pkg.manifestId === "ebka-ai-assistant" ||
+        pkg.manifestId?.includes("ebka"),
     );
 
     if (caidoPackage) {
       logToFile(
-        `Found Caido package: ${caidoPackage.name} (ID: ${caidoPackage.id})`,
+        `Found Caido package: ${caidoPackage.name} (ID: ${caidoPackage.id}, manifest: ${caidoPackage.manifestId})`,
       );
       // Find the backend plugin
       const backendPlugin = caidoPackage.plugins.find(
@@ -371,8 +378,13 @@ async function findCaidoPlugin(): Promise<string> {
       logToFile("Caido AI Assistant backend plugin not found", "ERROR");
       throw new Error("Caido AI Assistant backend plugin not found");
     }
-    logToFile("Caido AI Assistant plugin package not found", "ERROR");
-    throw new Error("Caido AI Assistant plugin package not found");
+    logToFile(
+      `Caido AI Assistant plugin not found among: ${pluginPackages.map((p: any) => p.name).join(", ")}`,
+      "ERROR",
+    );
+    throw new Error(
+      `Caido AI Assistant plugin package not found. Available: ${pluginPackages.map((p: any) => p.name).join(", ")}`,
+    );
   }
   logToFile("No plugin packages found", "ERROR");
   throw new Error("No plugin packages found");
