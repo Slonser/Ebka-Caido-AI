@@ -1,4 +1,4 @@
-export const tools_version = "0.1.1";
+export const tools_version = "0.1.2";
 export const tools_description = [
   {
     name: "list_by_httpql",
@@ -910,7 +910,12 @@ Example:
           properties: {
             placeholders: {
               type: "array",
-              description: "Array of placeholder configurations",
+              items: {
+                type: "object",
+                additionalProperties: true,
+              },
+              description:
+                "Array of placeholder configurations passed through to Caido",
             },
             updateContentLength: {
               type: "boolean",
