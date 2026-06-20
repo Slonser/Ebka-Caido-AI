@@ -175,10 +175,7 @@ export const get_workflow = async (sdk: SDK, input: any) => {
   }
 };
 
-export const list_workflow_node_definitions = async (
-  sdk: SDK,
-  _input: any,
-) => {
+export const list_workflow_node_definitions = async (sdk: SDK, _input: any) => {
   try {
     const result = await executeGraphQLQueryviaSDK(sdk, {
       query: WORKFLOW_NODE_DEFINITIONS_QUERY,
@@ -357,7 +354,7 @@ const passiveTemplate = (name: string) => ({
 const authCaptureTemplate = (
   name: string,
   variableName = "SESSION_TOKEN",
-  extractionCode = `const body = response?.getBody()?.toText() || "";\n  const match = body.match(/\"token\"\\s*:\\s*\"([^\"]+)\"/);\n  const value = match?.[1];`,
+  extractionCode = `const body = response?.getBody()?.toText() || "";\n  const match = body.match(/"token"\\s*:\\s*"([^"]+)"/);\n  const value = match?.[1];`,
 ) => {
   const variableNameLiteral = JSON.stringify(variableName);
 
@@ -517,7 +514,7 @@ export const get_workflow_definition_guide = async (sdk: SDK, input: any) => {
           node_definition_id: "caido/http-code-js",
           version: "0.1.1",
           required_inputs: ["request", "response", "code"],
-          code: `/**\n * @param {NodeInputHTTP} input\n * @param {SDK} sdk\n * @returns {MaybePromise<NodeResult | Data | undefined>}\n */\nexport async function run({ request, response, extra }, sdk) {\n  const body = response?.getBody()?.toText() || "";\n  const match = body.match(/\"token\"\\s*:\\s*\"([^\"]+)\"/);\n  if (match?.[1]) {\n    await sdk.env.setVar({ name: "SESSION_TOKEN", value: match[1], secret: true, global: true });\n  }\n  return { data: null, extra };\n}\n`,
+          code: `/**\n * @param {NodeInputHTTP} input\n * @param {SDK} sdk\n * @returns {MaybePromise<NodeResult | Data | undefined>}\n */\nexport async function run({ request, response, extra }, sdk) {\n  const body = response?.getBody()?.toText() || "";\n  const match = body.match(/"token"\\s*:\\s*"([^"]+)"/);\n  if (match?.[1]) {\n    await sdk.env.setVar({ name: "SESSION_TOKEN", value: match[1], secret: true, global: true });\n  }\n  return { data: null, extra };\n}\n`,
           notes:
             "Use sdk.env.setVar in PASSIVE/ACTIVE JavaScript workflows to save session, captcha, CSRF, or JWT values. In Replay, insert it with an environment preprocessor placeholder using options.environment.variableName.",
         },
@@ -541,12 +538,13 @@ export const get_workflow_definition_guide = async (sdk: SDK, input: any) => {
       success: false,
       error: `Failed to get workflow definition guide: ${error}`,
       details: error instanceof Error ? error.message : String(error),
-      summary: "Failed to get workflow definition guide due to unexpected error",
+      summary:
+        "Failed to get workflow definition guide due to unexpected error",
     };
   }
 };
 
-export const generate_workflow_template = async (_sdk: SDK, input: any) => {
+export const generate_workflow_template = (_sdk: SDK, input: any) => {
   const kind = String(input.kind || "CONVERT").toUpperCase();
   const template = String(input.template || "").toUpperCase();
   const name = input.name || `${kind} workflow`;
@@ -560,10 +558,10 @@ export const generate_workflow_template = async (_sdk: SDK, input: any) => {
           authExtractionCode(input),
         )
       : kind === "ACTIVE"
-      ? activeTemplate(name)
-      : kind === "PASSIVE"
-        ? passiveTemplate(name)
-        : convertTemplate(name, nodeDefinitionId);
+        ? activeTemplate(name)
+        : kind === "PASSIVE"
+          ? passiveTemplate(name)
+          : convertTemplate(name, nodeDefinitionId);
 
   return {
     success: true,

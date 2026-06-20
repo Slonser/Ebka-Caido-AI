@@ -952,7 +952,7 @@ Example:
         placeholders: {
           type: "array",
           description:
-            "Replay placeholders. Workflow preprocessor shape: { inputRange:{start,end}, outputRange:{start,end}, preprocessors:[{ options:{ workflow:{ id:\"workflow-id\" } } }] }. Environment preprocessor shape: { inputRange:{start,end}, outputRange:{start,end}, preprocessors:[{ options:{ environment:{ variableName:\"SESSION_TOKEN\" } } }] }",
+            'Replay placeholders. Workflow preprocessor shape: { inputRange:{start,end}, outputRange:{start,end}, preprocessors:[{ options:{ workflow:{ id:"workflow-id" } } }] }. Environment preprocessor shape: { inputRange:{start,end}, outputRange:{start,end}, preprocessors:[{ options:{ environment:{ variableName:"SESSION_TOKEN" } } }] }',
         },
         editor_state_base64: {
           type: "string",
@@ -1228,7 +1228,8 @@ Example:
         },
         include_raw: {
           type: "boolean",
-          description: "Whether to include base64 raw payloads (default: false)",
+          description:
+            "Whether to include base64 raw payloads (default: false)",
         },
         include_decoded: {
           type: "boolean",
@@ -1388,7 +1389,8 @@ Example:
         },
         global: {
           type: "boolean",
-          description: "Whether to create the workflow globally (default: false)",
+          description:
+            "Whether to create the workflow globally (default: false)",
         },
       },
       required: ["definition"],

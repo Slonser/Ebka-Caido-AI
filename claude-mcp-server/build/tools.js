@@ -919,7 +919,7 @@ Example:
                 },
                 placeholders: {
                     type: "array",
-                    description: "Replay placeholders. Workflow preprocessor shape: { inputRange:{start,end}, outputRange:{start,end}, preprocessors:[{ options:{ workflow:{ id:\"workflow-id\" } } }] }. Environment preprocessor shape: { inputRange:{start,end}, outputRange:{start,end}, preprocessors:[{ options:{ environment:{ variableName:\"SESSION_TOKEN\" } } }] }",
+                    description: 'Replay placeholders. Workflow preprocessor shape: { inputRange:{start,end}, outputRange:{start,end}, preprocessors:[{ options:{ workflow:{ id:"workflow-id" } } }] }. Environment preprocessor shape: { inputRange:{start,end}, outputRange:{start,end}, preprocessors:[{ options:{ environment:{ variableName:"SESSION_TOKEN" } } }] }',
                 },
                 editor_state_base64: {
                     type: "string",

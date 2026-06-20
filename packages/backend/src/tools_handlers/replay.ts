@@ -3,18 +3,18 @@ import type { SDK } from "caido:plugin";
 import { executeGraphQLQueryviaSDK } from "../graphql";
 import {
   CLEAR_REPLAY_ENTRY_DRAFT_MUTATION,
-  CREATE_REPLAY_SESSION_MUTATION,
   CREATE_REPLAY_SESSION_COLLECTION_MUTATION,
+  CREATE_REPLAY_SESSION_MUTATION,
   getDefaultReplayCollectionsQuery,
   getMoveReplaySessionFragments,
   getRenameReplaySessionCollectionFragments,
+  MOVE_REPLAY_SESSION_MUTATION,
+  RENAME_REPLAY_SESSION_COLLECTION_MUTATION,
+  RENAME_REPLAY_SESSION_MUTATION,
   REPLAY_SESSION_QUERY,
   REPLAY_SESSIONS_QUERY,
   SEND_REPLAY_WS_DRAFT_MUTATION,
   SEND_REPLAY_WS_MESSAGE_MUTATION,
-  MOVE_REPLAY_SESSION_MUTATION,
-  RENAME_REPLAY_SESSION_COLLECTION_MUTATION,
-  RENAME_REPLAY_SESSION_MUTATION,
   START_REPLAY_TASK_MUTATION,
   STOP_REPLAY_WS_TASKS_MUTATION,
   UPDATE_REPLAY_HTTP_DRAFT_MUTATION,
@@ -1100,8 +1100,13 @@ export const list_replay_sessions = async (sdk: SDK, input: any) => {
       ...edge.node,
     }));
     if (kind) {
-      const typename = String(kind).toUpperCase() === "WS" ? "ReplaySessionWs" : "ReplaySessionHttp";
-      sessions = sessions.filter((session: any) => session.__typename === typename);
+      const typename =
+        String(kind).toUpperCase() === "WS"
+          ? "ReplaySessionWs"
+          : "ReplaySessionHttp";
+      sessions = sessions.filter(
+        (session: any) => session.__typename === typename,
+      );
     }
 
     return {
@@ -1171,22 +1176,21 @@ export const create_websocket_replay_session = async (sdk: SDK, input: any) => {
     const rawRequestBase64 = input.raw_request_base64;
     const connection = input.connection;
 
-    const requestSource =
-      requestId
-        ? { id: requestId }
-        : rawRequest || rawRequestBase64
-          ? {
-              raw: {
-                connectionInfo: connection || {
-                  host: "localhost",
-                  port: 80,
-                  isTLS: false,
-                  SNI: null,
-                },
-                raw: toBase64(rawRequestBase64 || rawRequest, !!rawRequestBase64),
+    const requestSource = requestId
+      ? { id: requestId }
+      : rawRequest || rawRequestBase64
+        ? {
+            raw: {
+              connectionInfo: connection || {
+                host: "localhost",
+                port: 80,
+                isTLS: false,
+                SNI: null,
               },
-            }
-          : undefined;
+              raw: toBase64(rawRequestBase64 || rawRequest, !!rawRequestBase64),
+            },
+          }
+        : undefined;
 
     const result = await executeGraphQLQueryviaSDK(sdk, {
       query: CREATE_REPLAY_SESSION_MUTATION,
@@ -1204,7 +1208,10 @@ export const create_websocket_replay_session = async (sdk: SDK, input: any) => {
     if (!result.success || payload?.error || !payload?.session) {
       return {
         success: false,
-        error: payload?.error || result.error || "Failed to create WS replay session",
+        error:
+          payload?.error ||
+          result.error ||
+          "Failed to create WS replay session",
         summary: "Failed to create WebSocket replay session",
       };
     }
@@ -1221,7 +1228,8 @@ export const create_websocket_replay_session = async (sdk: SDK, input: any) => {
       success: false,
       error: `Failed to create WebSocket replay session: ${error}`,
       details: error instanceof Error ? error.message : String(error),
-      summary: "Failed to create WebSocket replay session due to unexpected error",
+      summary:
+        "Failed to create WebSocket replay session due to unexpected error",
     };
   }
 };
@@ -1280,7 +1288,8 @@ export const update_websocket_replay_draft = async (sdk: SDK, input: any) => {
       success: false,
       error: `Failed to update WebSocket replay draft: ${error}`,
       details: error instanceof Error ? error.message : String(error),
-      summary: "Failed to update WebSocket replay draft due to unexpected error",
+      summary:
+        "Failed to update WebSocket replay draft due to unexpected error",
     };
   }
 };
@@ -1420,7 +1429,8 @@ export const send_websocket_replay_message = async (sdk: SDK, input: any) => {
     if (!result.success || payload?.error || !payload?.message) {
       return {
         success: false,
-        error: payload?.error || result.error || "Failed to send WS replay message",
+        error:
+          payload?.error || result.error || "Failed to send WS replay message",
         summary: `Failed to send WebSocket replay message for task ${taskId}`,
       };
     }
@@ -1436,7 +1446,8 @@ export const send_websocket_replay_message = async (sdk: SDK, input: any) => {
       success: false,
       error: `Failed to send WebSocket replay message: ${error}`,
       details: error instanceof Error ? error.message : String(error),
-      summary: "Failed to send WebSocket replay message due to unexpected error",
+      summary:
+        "Failed to send WebSocket replay message due to unexpected error",
     };
   }
 };
@@ -1462,7 +1473,8 @@ export const send_websocket_replay_draft = async (sdk: SDK, input: any) => {
     if (!result.success || payload?.error || !payload?.message) {
       return {
         success: false,
-        error: payload?.error || result.error || "Failed to send WS replay draft",
+        error:
+          payload?.error || result.error || "Failed to send WS replay draft",
         summary: `Failed to send WebSocket replay draft for task ${taskId}`,
       };
     }
@@ -1506,7 +1518,8 @@ export const stop_websocket_replay_tasks = async (sdk: SDK, input: any) => {
     if (!result.success || payload?.error) {
       return {
         success: false,
-        error: payload?.error || result.error || "Failed to stop WS replay tasks",
+        error:
+          payload?.error || result.error || "Failed to stop WS replay tasks",
         summary: `Failed to stop WebSocket replay task(s): ${taskIds.join(", ")}`,
       };
     }

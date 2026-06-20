@@ -192,7 +192,9 @@ export const list_websocket_messages = async (sdk: SDK, input: any) => {
       if (includeDecoded) {
         message.raw_decoded = decoded;
         message.raw_preview =
-          decoded && decoded.length > 500 ? `${decoded.slice(0, 500)}...` : decoded;
+          decoded && decoded.length > 500
+            ? `${decoded.slice(0, 500)}...`
+            : decoded;
       }
 
       return message;
