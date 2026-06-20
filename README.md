@@ -35,7 +35,6 @@ _A powerful AI-powered assistant for Caido web application security testing, bui
   - [Getting Started](#getting-started)
     - [Method 1 - Claude Desktop via npx (Recommended)](#method-1---claude-desktop-via-npx-recommended)
     - [Method 2 - Claude Desktop from Source](#method-2---claude-desktop-from-source)
-    - [Method 3 - Direct API Access (Requires API Key)](#method-3---direct-api-access-requires-api-key)
   - [Codex Integration](#codex-integration)
     - [Codex via npx](#codex-via-npx)
     - [Codex from Source](#codex-from-source)
@@ -133,9 +132,6 @@ The easiest way to get started. No need to clone the repository or build anythin
 
 **That's it!** You can now communicate with Caido through Claude.
 
-![Claude Desktop Integration](./static/claude-init.png)
-*Claude Desktop Integration*
-
 ### Method 2 - Claude Desktop from Source
 
 If you prefer to build from source:
@@ -165,16 +161,6 @@ If you prefer to build from source:
    Replace `/path/to/` with the actual path to your cloned repository.
 
 3. **Follow the same authentication steps** as described in Method 1.
-
-### Method 3 - Direct API Access (Requires API Key)
-
-1. **Enter your API KEY** in the plugin tab
-2. **Use the functionality directly** from Caido without Claude Desktop
-
-![Direct Caido Integration](./static/claude-caido.png)
-*Direct Caido Integration*
-
----
 
 ## Codex Integration
 
