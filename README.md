@@ -36,6 +36,10 @@ _A powerful AI-powered assistant for Caido web application security testing, bui
     - [Method 1 - Claude Desktop via npx (Recommended)](#method-1---claude-desktop-via-npx-recommended)
     - [Method 2 - Claude Desktop from Source](#method-2---claude-desktop-from-source)
     - [Method 3 - Direct API Access (Requires API Key)](#method-3---direct-api-access-requires-api-key)
+  - [Codex Integration](#codex-integration)
+    - [Codex via npx](#codex-via-npx)
+    - [Codex from Source](#codex-from-source)
+  - [Replace `/absolute/path/to/Ebka-Caido-AI` with the path to your local checkout.](#replace-absolutepathtoebka-caido-ai-with-the-path-to-your-local-checkout)
   - [Installation](#installation)
     - [Prerequisites](#prerequisites-1)
     - [Install from source:](#install-from-source)
@@ -170,6 +174,50 @@ If you prefer to build from source:
 ![Direct Caido Integration](./static/claude-caido.png)
 *Direct Caido Integration*
 
+---
+
+## Codex Integration
+
+Codex can use the same MCP server as Claude Desktop. Add the Caido MCP server to your Codex MCP configuration, then restart Codex so it reloads the tool list.
+
+The examples below assume Caido is listening on `http://localhost:8080`. If your Caido instance uses another port, update `CAIDO_BASE_URL` (for example `http://127.0.0.1:8088`).
+
+### Codex via npx
+
+Add this to your Codex config, usually `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.caido]
+command = "npx"
+args = ["-y", "ebka-caido-ai"]
+
+[mcp_servers.caido.env]
+CAIDO_BASE_URL = "http://localhost:8080"
+```
+
+### Codex from Source
+
+Use this when developing the MCP server locally or testing unreleased changes:
+
+```bash
+git clone https://github.com/Slonser/Ebka-Caido-AI.git
+cd Ebka-Caido-AI/claude-mcp-server
+npm install
+npm run build
+```
+
+Then configure Codex:
+
+```toml
+[mcp_servers.caido]
+command = "node"
+args = ["/absolute/path/to/Ebka-Caido-AI/claude-mcp-server/build/index.js"]
+
+[mcp_servers.caido.env]
+CAIDO_BASE_URL = "http://localhost:8080"
+```
+
+Replace `/absolute/path/to/Ebka-Caido-AI` with the path to your local checkout.
 ---
 
 ## Installation
