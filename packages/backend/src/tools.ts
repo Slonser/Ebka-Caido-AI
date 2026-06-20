@@ -1,4 +1,4 @@
-export const tools_version = "0.1.1";
+export const tools_version = "0.1.10";
 export const tools_description = [
   {
     name: "list_by_httpql",
@@ -349,7 +349,8 @@ Example:
   },
   {
     name: "create_tamper_rule",
-    description: "Create a new tamper rule for Match/Replace functionality",
+    description:
+      "Create a new Match/Replace (Tamper) rule. Replacers can be static terms or Convert workflow IDs from list_workflows(kind: CONVERT).",
     input_schema: {
       type: "object",
       properties: {
@@ -416,7 +417,8 @@ Example:
                               properties: {
                                 id: {
                                   type: "string",
-                                  description: "Workflow ID for replacement",
+                                  description:
+                                    "Convert workflow ID used to transform the matched value before replacement",
                                 },
                               },
                             },
@@ -497,7 +499,7 @@ Example:
   {
     name: "update_tamper_rule",
     description:
-      "Update an existing tamper rule for Match/Replace functionality",
+      "Update an existing Match/Replace (Tamper) rule. Replacers can be static terms or Convert workflow IDs from list_workflows(kind: CONVERT).",
     input_schema: {
       type: "object",
       properties: {
@@ -563,7 +565,8 @@ Example:
                               properties: {
                                 id: {
                                   type: "string",
-                                  description: "Workflow ID for replacement",
+                                  description:
+                                    "Convert workflow ID used to transform the matched value before replacement",
                                 },
                               },
                             },
@@ -849,6 +852,42 @@ Example:
     },
   },
   {
+    name: "list_replay_sessions",
+    description: "List Replay sessions with optional HTTP/WS kind filtering",
+    input_schema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "Maximum number of sessions to retrieve (default: 50)",
+        },
+        after: {
+          type: "string",
+          description: "Optional pagination cursor",
+        },
+        kind: {
+          type: "string",
+          enum: ["HTTP", "WS"],
+          description: "Optional replay session kind filter",
+        },
+      },
+    },
+  },
+  {
+    name: "get_replay_session",
+    description: "Get a Replay session by ID, including recent entries",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The ID of the replay session to retrieve",
+        },
+      },
+      required: ["id"],
+    },
+  },
+  {
     name: "move_replay_session",
     description: "Move a replay session to a different collection",
     input_schema: {
@@ -869,7 +908,7 @@ Example:
   {
     name: "start_replay_task",
     description:
-      "Start a replay task to execute a request in a specific session",
+      "Start a replay task for a prepared Replay session. Use update_http_replay_draft or update_websocket_replay_draft first when the draft must be changed.",
     input_schema: {
       type: "object",
       properties: {
@@ -877,26 +916,90 @@ Example:
           type: "string",
           description: "The ID of the replay session to start the task in",
         },
+      },
+      required: ["session_id"],
+    },
+  },
+  {
+    name: "update_http_replay_draft",
+    description:
+      "Update an HTTP Replay entry draft. Placeholders may use Convert workflow preprocessors via options.workflow.id or environment variables via options.environment.variableName.",
+    input_schema: {
+      type: "object",
+      properties: {
+        entry_id: {
+          type: "string",
+          description: "The Replay HTTP entry ID to update",
+        },
         raw_request: {
           type: "string",
-          description:
-            "The raw HTTP request to replay (will be automatically encoded to base64)",
+          description: "Raw UTF-8 HTTP request draft",
+        },
+        raw_request_base64: {
+          type: "string",
+          description: "Base64-encoded HTTP request draft",
         },
         connection: {
           type: "object",
-          description: "Connection settings for the replay task",
+          description: "Connection info for the draft request",
+          properties: {
+            host: { type: "string" },
+            port: { type: "number" },
+            isTLS: { type: "boolean" },
+            SNI: { type: "string" },
+          },
+        },
+        placeholders: {
+          type: "array",
+          description:
+            "Replay placeholders. Workflow preprocessor shape: { inputRange:{start,end}, outputRange:{start,end}, preprocessors:[{ options:{ workflow:{ id:\"workflow-id\" } } }] }. Environment preprocessor shape: { inputRange:{start,end}, outputRange:{start,end}, preprocessors:[{ options:{ environment:{ variableName:\"SESSION_TOKEN\" } } }] }",
+        },
+        editor_state_base64: {
+          type: "string",
+          description: "Optional base64 editor state",
+        },
+      },
+      required: ["entry_id"],
+    },
+  },
+  {
+    name: "create_websocket_replay_session",
+    description:
+      "Create a WebSocket Replay session from a Caido request ID or raw upgrade request",
+    input_schema: {
+      type: "object",
+      properties: {
+        request_id: {
+          type: "string",
+          description: "Optional Caido request ID to use as source",
+        },
+        raw_request: {
+          type: "string",
+          description: "Optional raw UTF-8 WebSocket upgrade request",
+        },
+        raw_request_base64: {
+          type: "string",
+          description: "Optional base64-encoded WebSocket upgrade request",
+        },
+        collection_id: {
+          type: "string",
+          description: "Optional Replay collection ID",
+        },
+        connection: {
+          type: "object",
+          description: "Connection info for raw_request sources",
           properties: {
             host: {
               type: "string",
-              description: "Target host for the request",
+              description: "Target host",
             },
             port: {
               type: "number",
-              description: "Target port for the request",
+              description: "Target port",
             },
             isTLS: {
               type: "boolean",
-              description: "Whether to use TLS/HTTPS",
+              description: "Whether to use TLS",
             },
             SNI: {
               type: "string",
@@ -904,28 +1007,129 @@ Example:
             },
           },
         },
-        settings: {
-          type: "object",
-          description: "Additional settings for the replay task",
-          properties: {
-            placeholders: {
-              type: "array",
-              description: "Array of placeholder configurations",
-            },
-            updateContentLength: {
-              type: "boolean",
-              description:
-                "Whether to automatically update Content-Length header",
-            },
-            connectionClose: {
-              type: "boolean",
-              description:
-                "Whether to close the connection after the request (default: false)",
-            },
-          },
+      },
+    },
+  },
+  {
+    name: "update_websocket_replay_draft",
+    description: "Update a WebSocket Replay entry draft message",
+    input_schema: {
+      type: "object",
+      properties: {
+        entry_id: {
+          type: "string",
+          description: "The Replay WS entry ID to update",
+        },
+        raw: {
+          type: "string",
+          description: "Raw UTF-8 WebSocket message payload",
+        },
+        raw_base64: {
+          type: "string",
+          description: "Base64-encoded WebSocket message payload",
+        },
+        direction: {
+          type: "string",
+          enum: ["CLIENT", "SERVER"],
+          description: "Message direction (default: CLIENT)",
+        },
+        format: {
+          type: "string",
+          enum: ["TEXT", "BINARY", "CLOSE", "PING", "PONG"],
+          description: "Message format (default: TEXT)",
+        },
+        server_timeout_ms: {
+          type: "number",
+          description: "Server timeout in milliseconds (default: 30000)",
+        },
+        editor_state_base64: {
+          type: "string",
+          description: "Optional base64 editor state",
         },
       },
-      required: ["session_id", "raw_request"],
+      required: ["entry_id"],
+    },
+  },
+  {
+    name: "clear_replay_entry_draft",
+    description: "Clear a Replay entry draft",
+    input_schema: {
+      type: "object",
+      properties: {
+        entry_id: {
+          type: "string",
+          description: "The Replay entry ID",
+        },
+        kind: {
+          type: "string",
+          enum: ["HTTP", "WS"],
+          description: "Replay session kind (default: WS)",
+        },
+      },
+      required: ["entry_id"],
+    },
+  },
+  {
+    name: "send_websocket_replay_message",
+    description: "Send a WebSocket message on a running Replay WS task",
+    input_schema: {
+      type: "object",
+      properties: {
+        task_id: {
+          type: "string",
+          description: "The running Replay task ID",
+        },
+        raw: {
+          type: "string",
+          description: "Raw UTF-8 WebSocket message payload",
+        },
+        raw_base64: {
+          type: "string",
+          description: "Base64-encoded WebSocket message payload",
+        },
+        direction: {
+          type: "string",
+          enum: ["CLIENT", "SERVER"],
+          description: "Message direction (default: CLIENT)",
+        },
+        format: {
+          type: "string",
+          enum: ["TEXT", "BINARY", "CLOSE", "PING", "PONG"],
+          description: "Message format (default: TEXT)",
+        },
+      },
+      required: ["task_id"],
+    },
+  },
+  {
+    name: "send_websocket_replay_draft",
+    description: "Send the current draft on a running Replay WS task",
+    input_schema: {
+      type: "object",
+      properties: {
+        task_id: {
+          type: "string",
+          description: "The running Replay task ID",
+        },
+      },
+      required: ["task_id"],
+    },
+  },
+  {
+    name: "stop_websocket_replay_tasks",
+    description: "Stop one or more running Replay WS tasks",
+    input_schema: {
+      type: "object",
+      properties: {
+        task_ids: {
+          type: "array",
+          items: {
+            type: "string",
+          },
+          description: "Replay WS task IDs to stop",
+        },
+      },
+      required: ["task_ids"],
     },
   },
   {
@@ -945,6 +1149,11 @@ Example:
         scope_id: {
           type: "string",
           description: "Optional scope ID to filter streams",
+        },
+        filter_code: {
+          type: "string",
+          description:
+            'Optional StreamQL clause to combine with the WebSocket filter, e.g. stream.host.cont:"example.com"',
         },
         order: {
           type: "object",
@@ -980,6 +1189,71 @@ Example:
     },
   },
   {
+    name: "get_websocket_stream",
+    description: "Get details for a specific WebSocket or stream by ID",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The unique ID of the stream to retrieve",
+        },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "list_websocket_messages",
+    description:
+      "List WebSocket messages in a stream with pagination and optional StreamQL filtering",
+    input_schema: {
+      type: "object",
+      properties: {
+        stream_id: {
+          type: "string",
+          description: "The unique ID of the WebSocket stream",
+        },
+        limit: {
+          type: "number",
+          description: "Maximum number of messages to retrieve (default: 50)",
+        },
+        offset: {
+          type: "number",
+          description: "Number of messages to skip for pagination (default: 0)",
+        },
+        filter_code: {
+          type: "string",
+          description:
+            'Optional StreamQL clause for messages, e.g. stream.id.eq:"123"',
+        },
+        include_raw: {
+          type: "boolean",
+          description: "Whether to include base64 raw payloads (default: false)",
+        },
+        include_decoded: {
+          type: "boolean",
+          description:
+            "Whether to include decoded text previews when possible (default: true)",
+        },
+        order: {
+          type: "object",
+          description: "Sorting order for messages (default: ID ascending)",
+          properties: {
+            by: {
+              type: "string",
+              description: "Field to sort by (e.g., 'ID')",
+            },
+            ordering: {
+              type: "string",
+              description: "Sort order ('ASC' or 'DESC')",
+            },
+          },
+        },
+      },
+      required: ["stream_id"],
+    },
+  },
+  {
     name: "get_websocket_message",
     description:
       "Get detailed information about a specific WebSocket message by its ID",
@@ -992,6 +1266,370 @@ Example:
         },
       },
       required: ["id"],
+    },
+  },
+  {
+    name: "list_workflows",
+    description:
+      "List Caido workflows. Workflow kinds: ACTIVE runs against a request, PASSIVE analyzes traffic, CONVERT transforms bytes/text and can be used by Tamper replacers and Replay preprocessors.",
+    input_schema: {
+      type: "object",
+      properties: {
+        kind: {
+          type: "string",
+          description:
+            "Optional workflow kind filter, such as PASSIVE, ACTIVE, or CONVERT",
+        },
+        enabled: {
+          type: "boolean",
+          description: "Optional enabled state filter",
+        },
+        include_definition: {
+          type: "boolean",
+          description:
+            "Whether to include full workflow definitions (default: false)",
+        },
+      },
+    },
+  },
+  {
+    name: "get_workflow",
+    description:
+      "Get a Caido workflow by ID, including its definition. Use this before cloning/editing workflows or wiring Convert workflows into Tamper/Replay.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The workflow ID to retrieve",
+        },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "list_workflow_node_definitions",
+    description: "List available Caido workflow node definitions",
+    input_schema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "get_workflow_definition_guide",
+    description:
+      "Explain Caido workflow definition JSON shape and list compatible node definitions. Use before creating or editing workflow definitions from scratch.",
+    input_schema: {
+      type: "object",
+      properties: {
+        kind: {
+          type: "string",
+          enum: ["CONVERT", "ACTIVE", "PASSIVE"],
+          description: "Optional workflow kind to filter node definitions",
+        },
+      },
+    },
+  },
+  {
+    name: "generate_workflow_template",
+    description:
+      "Generate a starter workflow definition JSON for CONVERT, ACTIVE, PASSIVE, or template-specific workflows such as AUTH_CAPTURE. Edit the result, validate with test_*_workflow, then pass it to create_workflow or update_workflow.",
+    input_schema: {
+      type: "object",
+      properties: {
+        kind: {
+          type: "string",
+          enum: ["CONVERT", "ACTIVE", "PASSIVE"],
+          description: "Workflow kind for the template (default: CONVERT)",
+        },
+        name: {
+          type: "string",
+          description: "Workflow name for the template",
+        },
+        node_definition_id: {
+          type: "string",
+          description:
+            "Optional transform node for CONVERT templates, such as caido/code-js, caido/base64-decode, or caido/url-encode",
+        },
+        template: {
+          type: "string",
+          enum: ["AUTH_CAPTURE"],
+          description:
+            "Optional specialized template. AUTH_CAPTURE creates a passive JavaScript workflow that saves a matched session/captcha/token to sdk.env.",
+        },
+        variable_name: {
+          type: "string",
+          description:
+            "Environment variable name for AUTH_CAPTURE templates (default: SESSION_TOKEN)",
+        },
+        extraction_code: {
+          type: "string",
+          description:
+            "Optional JavaScript snippet for AUTH_CAPTURE. It runs inside run({ request, response, extra }, sdk) and must define const value or let value with the string to save. Useful APIs: request/response.getBody()?.toText(), request.getQuery(), request/response.getHeader(name). In current Caido builds getHeader(name) returns an array, so use header[0] or join it before parsing. Use get_workflow_definition_guide for cookie/header/query examples.",
+        },
+        extraction_goal: {
+          type: "string",
+          description:
+            "Human-readable goal for the model when generating extraction_code, e.g. 'save PHPSESSID from request Cookie header' or 'save captcha query parameter'. This field is informational; generate_workflow_template uses extraction_code when provided.",
+        },
+      },
+    },
+  },
+  {
+    name: "create_workflow",
+    description:
+      "Create a Caido workflow from a complete workflow definition JSON. First use get_workflow_definition_guide or generate_workflow_template; validate with test_active_workflow, test_passive_workflow, or test_convert_workflow before creating.",
+    input_schema: {
+      type: "object",
+      properties: {
+        definition: {
+          description:
+            "Complete workflow definition JSON object/string with edition, id, name, kind, graph.nodes, and graph.edges. Use generate_workflow_template for the expected shape.",
+        },
+        global: {
+          type: "boolean",
+          description: "Whether to create the workflow globally (default: false)",
+        },
+      },
+      required: ["definition"],
+    },
+  },
+  {
+    name: "update_workflow",
+    description:
+      "Update a Caido workflow definition. Fetch the existing definition with get_workflow, modify it, validate with test_*_workflow, then update.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The workflow ID to update",
+        },
+        definition: {
+          description:
+            "Complete replacement workflow definition JSON object/string. Use get_workflow_definition_guide for node/input shape.",
+        },
+      },
+      required: ["id", "definition"],
+    },
+  },
+  {
+    name: "rename_workflow",
+    description: "Rename a Caido workflow",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The workflow ID to rename",
+        },
+        name: {
+          type: "string",
+          description: "New workflow name",
+        },
+      },
+      required: ["id", "name"],
+    },
+  },
+  {
+    name: "delete_workflow",
+    description: "Delete a Caido workflow by ID",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The workflow ID to delete",
+        },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "globalize_workflow",
+    description: "Move a Caido workflow to global scope",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The workflow ID to globalize",
+        },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "localize_workflow",
+    description: "Move a Caido workflow to project-local scope",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The workflow ID to localize",
+        },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "toggle_workflow",
+    description: "Enable or disable a Caido workflow",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The workflow ID to toggle",
+        },
+        enabled: {
+          type: "boolean",
+          description: "Whether the workflow should be enabled",
+        },
+      },
+      required: ["id", "enabled"],
+    },
+  },
+  {
+    name: "run_active_workflow",
+    description: "Run an active Caido workflow against a request ID",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The active workflow ID to run",
+        },
+        request_id: {
+          type: "string",
+          description: "The Caido request ID to run the workflow against",
+        },
+      },
+      required: ["id", "request_id"],
+    },
+  },
+  {
+    name: "run_convert_workflow",
+    description:
+      "Run a CONVERT workflow against raw text or base64 input. These workflows are also usable as Tamper replacers and Replay placeholder preprocessors.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+          description: "The convert workflow ID to run",
+        },
+        raw: {
+          type: "string",
+          description: "Raw UTF-8 input to pass to the workflow",
+        },
+        raw_base64: {
+          type: "string",
+          description:
+            "Base64-encoded input to pass to the workflow instead of raw",
+        },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "test_active_workflow",
+    description: "Test an active workflow definition against raw request data",
+    input_schema: {
+      type: "object",
+      properties: {
+        definition: {
+          description: "Workflow definition as a JSON object or JSON string",
+        },
+        request_raw: {
+          type: "string",
+          description: "Raw UTF-8 request to test",
+        },
+        request_raw_base64: {
+          type: "string",
+          description: "Base64-encoded raw request to test",
+        },
+        response_raw: {
+          type: "string",
+          description: "Optional raw UTF-8 response",
+        },
+        response_raw_base64: {
+          type: "string",
+          description: "Optional base64-encoded raw response",
+        },
+        connection: {
+          type: "object",
+          description: "Connection info for request_raw",
+          properties: {
+            host: { type: "string" },
+            port: { type: "number" },
+            isTLS: { type: "boolean" },
+            SNI: { type: "string" },
+          },
+        },
+      },
+      required: ["definition"],
+    },
+  },
+  {
+    name: "test_passive_workflow",
+    description: "Test a passive workflow definition against raw request data",
+    input_schema: {
+      type: "object",
+      properties: {
+        definition: {
+          description: "Workflow definition as a JSON object or JSON string",
+        },
+        request_raw: {
+          type: "string",
+          description: "Raw UTF-8 request to test",
+        },
+        request_raw_base64: {
+          type: "string",
+          description: "Base64-encoded raw request to test",
+        },
+        response_raw: {
+          type: "string",
+          description: "Optional raw UTF-8 response",
+        },
+        response_raw_base64: {
+          type: "string",
+          description: "Optional base64-encoded raw response",
+        },
+        connection: {
+          type: "object",
+          description: "Connection info for request_raw",
+          properties: {
+            host: { type: "string" },
+            port: { type: "number" },
+            isTLS: { type: "boolean" },
+            SNI: { type: "string" },
+          },
+        },
+      },
+      required: ["definition"],
+    },
+  },
+  {
+    name: "test_convert_workflow",
+    description: "Test a convert workflow definition against raw input",
+    input_schema: {
+      type: "object",
+      properties: {
+        definition: {
+          description: "Workflow definition as a JSON object or JSON string",
+        },
+        raw: {
+          type: "string",
+          description: "Raw UTF-8 input to test",
+        },
+        raw_base64: {
+          type: "string",
+          description: "Base64-encoded input to test",
+        },
+      },
+      required: ["definition"],
     },
   },
   {

@@ -185,48 +185,47 @@ export const MOVE_REPLAY_SESSION_MUTATION = `
 
 // Mutation for starting a replay task
 export const START_REPLAY_TASK_MUTATION = `
-  mutation startReplayTask($sessionId: ID!, $input: StartReplayTaskInput!) {
-    startReplayTask(sessionId: $sessionId, input: $input) {
+  mutation startReplayTask($sessionId: ID!) {
+    startReplayTask(sessionId: $sessionId) {
       task {
         id
         createdAt
+        sessionKind
         replayEntry {
-          ...replayEntryMeta
-          settings {
-            placeholders {
-              inputRange {
-                start
-                end
-              }
-              outputRange {
-                start
-                end
-              }
-              preprocessors {
-                options {
-                  ... on ReplayPrefixPreprocessor {
-                    value
-                  }
-                  ... on ReplaySuffixPreprocessor {
-                    value
-                  }
-                  ... on ReplayUrlEncodePreprocessor {
-                    charset
-                    nonAscii
-                  }
-                  ... on ReplayWorkflowPreprocessor {
-                    id
-                  }
-                  ... on ReplayEnvironmentPreprocessor {
-                    variableName
-                  }
-                }
+          __typename
+          id
+          error
+          createdAt
+          session {
+            id
+            name
+          }
+          ... on ReplayEntryHttp {
+            connection {
+              host
+              port
+              isTLS
+              SNI
+            }
+            request {
+              id
+              method
+              host
+              path
+              response {
+                id
+                statusCode
               }
             }
           }
-          request {
-            ...requestMeta
-            raw
+          ... on ReplayEntryWs {
+            stream {
+              id
+              host
+              port
+              path
+              protocol
+            }
           }
         }
       }
@@ -246,6 +245,321 @@ export const START_REPLAY_TASK_MUTATION = `
         ... on OtherUserError {
           code
         }
+      }
+    }
+  }
+`;
+
+export const REPLAY_SESSION_QUERY = `
+  query replaySession($id: ID!) {
+    replaySession(id: $id) {
+      __typename
+      id
+      name
+      rank
+      ... on ReplaySessionHttp {
+        activeEntry {
+          __typename
+          id
+          error
+          createdAt
+        }
+        entries(first: 20, order: { by: ID, ordering: DESC }) {
+          nodes {
+            __typename
+            id
+            error
+            createdAt
+            ... on ReplayEntryHttp {
+              connection {
+                host
+                port
+                isTLS
+                SNI
+              }
+              request {
+                id
+                method
+                host
+                path
+              }
+            }
+          }
+        }
+        collection {
+          id
+          name
+        }
+      }
+      ... on ReplaySessionWs {
+        activeEntry {
+          __typename
+          id
+          error
+          createdAt
+        }
+        entries(first: 20, order: { by: ID, ordering: DESC }) {
+          nodes {
+            __typename
+            id
+            error
+            createdAt
+            ... on ReplayEntryWs {
+              stream {
+                id
+                host
+                port
+                path
+                protocol
+              }
+              messages {
+                id
+                head {
+                  id
+                  direction
+                  format
+                  length
+                  createdAt
+                }
+              }
+              draft {
+                direction
+                format
+                raw
+              }
+            }
+          }
+        }
+        collection {
+          id
+          name
+        }
+      }
+    }
+  }
+`;
+
+export const REPLAY_SESSIONS_QUERY = `
+  query replaySessions($first: Int, $after: String) {
+    replaySessions(first: $first, after: $after) {
+      edges {
+        cursor
+        node {
+          __typename
+          id
+          name
+          rank
+          ... on ReplaySessionHttp {
+            activeEntry {
+              id
+            }
+            collection {
+              id
+              name
+            }
+          }
+          ... on ReplaySessionWs {
+            activeEntry {
+              id
+            }
+            collection {
+              id
+              name
+            }
+          }
+        }
+      }
+      pageInfo {
+        hasPreviousPage
+        hasNextPage
+        startCursor
+        endCursor
+      }
+    }
+  }
+`;
+
+export const CREATE_REPLAY_SESSION_MUTATION = `
+  mutation createReplaySession($input: CreateReplaySessionInput!) {
+    createReplaySession(input: $input) {
+      session {
+        __typename
+        id
+        name
+        rank
+        ... on ReplaySessionHttp {
+          collection {
+            id
+            name
+          }
+          activeEntry {
+            id
+          }
+        }
+        ... on ReplaySessionWs {
+          collection {
+            id
+            name
+          }
+          activeEntry {
+            id
+          }
+        }
+      }
+      error {
+        __typename
+      }
+    }
+  }
+`;
+
+export const UPDATE_REPLAY_WS_DRAFT_MUTATION = `
+  mutation updateReplayWsDraft($id: ID!, $input: UpdateReplayEntryDraftInput!) {
+    updateReplayEntryDraft(id: $id, input: $input) {
+      entry {
+        __typename
+        id
+        error
+        createdAt
+        ... on ReplayEntryWs {
+          draft {
+            raw
+            direction
+            format
+            editorState
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const UPDATE_REPLAY_HTTP_DRAFT_MUTATION = `
+  mutation updateReplayHttpDraft($id: ID!, $input: UpdateReplayEntryDraftInput!) {
+    updateReplayEntryDraft(id: $id, input: $input) {
+      entry {
+        __typename
+        id
+        error
+        createdAt
+        ... on ReplayEntryHttp {
+          draft {
+            raw
+            editorState
+            connection {
+              host
+              port
+              isTLS
+              SNI
+            }
+            settings {
+              placeholders {
+                inputRange {
+                  start
+                  end
+                }
+                outputRange {
+                  start
+                  end
+                }
+                preprocessors {
+                  options {
+                    __typename
+                    ... on ReplayPrefixPreprocessor {
+                      value
+                    }
+                    ... on ReplaySuffixPreprocessor {
+                      value
+                    }
+                    ... on ReplayUrlEncodePreprocessor {
+                      charset
+                      nonAscii
+                    }
+                    ... on ReplayWorkflowPreprocessor {
+                      id
+                    }
+                    ... on ReplayEnvironmentPreprocessor {
+                      variableName
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const CLEAR_REPLAY_ENTRY_DRAFT_MUTATION = `
+  mutation clearReplayEntryDraft($id: ID!, $kind: ReplaySessionKind!) {
+    clearReplayEntryDraft(id: $id, kind: $kind) {
+      entry {
+        __typename
+        id
+        error
+        createdAt
+      }
+    }
+  }
+`;
+
+export const SEND_REPLAY_WS_MESSAGE_MUTATION = `
+  mutation sendReplayTaskMessage($task: ID!, $input: SendReplayTaskMessageInput!) {
+    sendReplayTaskMessage(task: $task, input: $input) {
+      message {
+        __typename
+        ... on StreamWsMessage {
+          id
+          head {
+            id
+            length
+            alteration
+            direction
+            format
+            createdAt
+            raw
+          }
+        }
+      }
+      error {
+        __typename
+      }
+    }
+  }
+`;
+
+export const SEND_REPLAY_WS_DRAFT_MUTATION = `
+  mutation sendReplayTaskMessageDraft($task: ID!) {
+    sendReplayTaskMessageDraft(task: $task) {
+      message {
+        __typename
+        ... on StreamWsMessage {
+          id
+          head {
+            id
+            length
+            alteration
+            direction
+            format
+            createdAt
+            raw
+          }
+        }
+      }
+      error {
+        __typename
+      }
+    }
+  }
+`;
+
+export const STOP_REPLAY_WS_TASKS_MUTATION = `
+  mutation stopReplayWsTasks($taskIds: [ID!]!) {
+    stopReplayWsTasks(taskIds: $taskIds) {
+      error {
+        __typename
       }
     }
   }

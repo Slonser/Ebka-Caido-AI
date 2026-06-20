@@ -317,6 +317,333 @@ async function callCaidoFunction(functionName, args) {
     logToFile(`Function ${functionName} executed successfully`);
     return response.data;
 }
+const WORKFLOW_FIELDS = `
+  fragment workflowFields on Workflow {
+    id
+    name
+    kind
+    enabled
+    global
+    readOnly
+    definition
+    createdAt
+    updatedAt
+  }
+`;
+const UNKNOWN_OR_OTHER_ERROR_FIELDS = `
+  __typename
+  ... on UnknownIdUserError {
+    id
+    code
+  }
+  ... on OtherUserError {
+    code
+  }
+`;
+const OTHER_ERROR_FIELDS = `
+  __typename
+  ... on OtherUserError {
+    code
+  }
+`;
+const WORKFLOW_USER_ERROR_FIELDS = `
+  ... on WorkflowUserError {
+    code
+    reason
+    node
+    message
+  }
+`;
+const PERMISSION_DENIED_ERROR_FIELDS = `
+  ... on PermissionDeniedUserError {
+    code
+    reason
+  }
+`;
+const READ_ONLY_ERROR_FIELDS = `
+  ... on ReadOnlyUserError {
+    code
+  }
+`;
+const directWorkflowTools = new Set([
+    "create_workflow",
+    "update_workflow",
+    "rename_workflow",
+    "delete_workflow",
+    "globalize_workflow",
+    "localize_workflow",
+    "toggle_workflow",
+]);
+async function executeCaidoGraphQL(query, variables) {
+    const headers = {
+        "Content-Type": "application/json",
+    };
+    if (CAIDO_CONFIG.authToken) {
+        headers["Authorization"] = `Bearer ${CAIDO_CONFIG.authToken}`;
+    }
+    const response = await axios.post(`${CAIDO_CONFIG.baseUrl}/graphql`, { query, variables }, { headers });
+    if (response.data.errors) {
+        return {
+            success: false,
+            error: response.data.errors,
+            summary: "GraphQL operation failed",
+        };
+    }
+    return {
+        success: true,
+        data: response.data.data,
+    };
+}
+function parseWorkflowDefinition(definition) {
+    return typeof definition === "string" ? JSON.parse(definition) : definition;
+}
+function workflowPayloadError(payload, fallback) {
+    return payload?.error || fallback || "Workflow operation failed";
+}
+async function executeDirectWorkflowTool(name, input) {
+    if (name === "create_workflow") {
+        if (!input?.definition) {
+            return {
+                success: false,
+                error: "Workflow definition is required",
+                summary: "Please provide a workflow definition object or JSON string",
+            };
+        }
+        const query = `
+      mutation createWorkflow($input: CreateWorkflowInput!) {
+        createWorkflow(input: $input) {
+          workflow {
+            ...workflowFields
+          }
+          error {
+            ${WORKFLOW_USER_ERROR_FIELDS}
+            ${PERMISSION_DENIED_ERROR_FIELDS}
+            ${OTHER_ERROR_FIELDS}
+          }
+        }
+      }
+      ${WORKFLOW_FIELDS}
+    `;
+        const result = await executeCaidoGraphQL(query, {
+            input: {
+                definition: parseWorkflowDefinition(input.definition),
+                global: input.global === true,
+            },
+        });
+        const payload = result.data?.createWorkflow;
+        if (!result.success || payload?.error || !payload?.workflow) {
+            return {
+                success: false,
+                error: workflowPayloadError(payload, result.error),
+                summary: "Failed to create workflow",
+            };
+        }
+        return {
+            success: true,
+            workflow: payload.workflow,
+            workflow_id: payload.workflow.id,
+            summary: `Created workflow ${payload.workflow.id}: ${payload.workflow.name}`,
+        };
+    }
+    if (name === "update_workflow") {
+        if (!input?.id || !input?.definition) {
+            return {
+                success: false,
+                error: "Workflow ID and definition are required",
+                summary: "Please provide id and definition",
+            };
+        }
+        const query = `
+      mutation updateWorkflow($id: ID!, $input: UpdateWorkflowInput!) {
+        updateWorkflow(id: $id, input: $input) {
+          workflow {
+            ...workflowFields
+          }
+          error {
+            ${WORKFLOW_USER_ERROR_FIELDS}
+            ${READ_ONLY_ERROR_FIELDS}
+            ${UNKNOWN_OR_OTHER_ERROR_FIELDS}
+          }
+        }
+      }
+      ${WORKFLOW_FIELDS}
+    `;
+        const result = await executeCaidoGraphQL(query, {
+            id: input.id,
+            input: { definition: parseWorkflowDefinition(input.definition) },
+        });
+        const payload = result.data?.updateWorkflow;
+        if (!result.success || payload?.error || !payload?.workflow) {
+            return {
+                success: false,
+                error: workflowPayloadError(payload, result.error),
+                summary: `Failed to update workflow ${input.id}`,
+            };
+        }
+        return {
+            success: true,
+            workflow: payload.workflow,
+            summary: `Updated workflow ${payload.workflow.id}: ${payload.workflow.name}`,
+        };
+    }
+    if (name === "rename_workflow") {
+        if (!input?.id || !input?.name) {
+            return {
+                success: false,
+                error: "Workflow ID and new name are required",
+                summary: "Please provide id and name",
+            };
+        }
+        const query = `
+      mutation renameWorkflow($id: ID!, $name: String!) {
+        renameWorkflow(id: $id, name: $name) {
+          workflow {
+            ...workflowFields
+          }
+          error {
+            ${READ_ONLY_ERROR_FIELDS}
+            ${UNKNOWN_OR_OTHER_ERROR_FIELDS}
+          }
+        }
+      }
+      ${WORKFLOW_FIELDS}
+    `;
+        const result = await executeCaidoGraphQL(query, {
+            id: input.id,
+            name: input.name,
+        });
+        const payload = result.data?.renameWorkflow;
+        if (!result.success || payload?.error || !payload?.workflow) {
+            return {
+                success: false,
+                error: workflowPayloadError(payload, result.error),
+                summary: `Failed to rename workflow ${input.id}`,
+            };
+        }
+        return {
+            success: true,
+            workflow: payload.workflow,
+            summary: `Renamed workflow ${payload.workflow.id} to ${payload.workflow.name}`,
+        };
+    }
+    if (name === "delete_workflow") {
+        if (!input?.id) {
+            return {
+                success: false,
+                error: "Workflow ID is required",
+                summary: "Please provide a workflow ID",
+            };
+        }
+        const query = `
+      mutation deleteWorkflow($id: ID!) {
+        deleteWorkflow(id: $id) {
+          deletedId
+          error {
+            ${READ_ONLY_ERROR_FIELDS}
+            ${UNKNOWN_OR_OTHER_ERROR_FIELDS}
+          }
+        }
+      }
+    `;
+        const result = await executeCaidoGraphQL(query, { id: input.id });
+        const payload = result.data?.deleteWorkflow;
+        if (!result.success || payload?.error || !payload?.deletedId) {
+            return {
+                success: false,
+                error: workflowPayloadError(payload, result.error),
+                summary: `Failed to delete workflow ${input.id}`,
+            };
+        }
+        return {
+            success: true,
+            deleted_id: payload.deletedId,
+            summary: `Deleted workflow ${payload.deletedId}`,
+        };
+    }
+    if (name === "globalize_workflow" || name === "localize_workflow") {
+        if (!input?.id) {
+            return {
+                success: false,
+                error: "Workflow ID is required",
+                summary: "Please provide a workflow ID",
+            };
+        }
+        const operationName = name === "globalize_workflow" ? "globalizeWorkflow" : "localizeWorkflow";
+        const query = `
+      mutation ${operationName}($id: ID!) {
+        ${operationName}(id: $id) {
+          workflow {
+            ...workflowFields
+          }
+          error {
+            ${WORKFLOW_USER_ERROR_FIELDS}
+            ${READ_ONLY_ERROR_FIELDS}
+            ${UNKNOWN_OR_OTHER_ERROR_FIELDS}
+          }
+        }
+      }
+      ${WORKFLOW_FIELDS}
+    `;
+        const result = await executeCaidoGraphQL(query, { id: input.id });
+        const payload = result.data?.[operationName];
+        if (!result.success || payload?.error || !payload?.workflow) {
+            return {
+                success: false,
+                error: workflowPayloadError(payload, result.error),
+                summary: `Failed to ${operationName === "globalizeWorkflow" ? "globalize" : "localize"} workflow ${input.id}`,
+            };
+        }
+        return {
+            success: true,
+            workflow: payload.workflow,
+            summary: `Workflow ${payload.workflow.id} is now ${payload.workflow.global ? "global" : "local"}`,
+        };
+    }
+    if (name === "toggle_workflow") {
+        if (!input?.id || typeof input.enabled !== "boolean") {
+            return {
+                success: false,
+                error: "Workflow ID and boolean enabled value are required",
+                summary: "Please provide id and enabled",
+            };
+        }
+        const query = `
+      mutation toggleWorkflow($id: ID!, $enabled: Boolean!) {
+        toggleWorkflow(id: $id, enabled: $enabled) {
+          workflow {
+            ...workflowFields
+          }
+          error {
+            ${UNKNOWN_OR_OTHER_ERROR_FIELDS}
+          }
+        }
+      }
+      ${WORKFLOW_FIELDS}
+    `;
+        const result = await executeCaidoGraphQL(query, {
+            id: input.id,
+            enabled: input.enabled,
+        });
+        const payload = result.data?.toggleWorkflow;
+        if (!result.success || payload?.error || !payload?.workflow) {
+            return {
+                success: false,
+                error: workflowPayloadError(payload, result.error),
+                summary: `Failed to set workflow ${input.id} enabled=${input.enabled}`,
+            };
+        }
+        return {
+            success: true,
+            workflow: payload.workflow,
+            summary: `Workflow ${payload.workflow.id} is now ${payload.workflow.enabled ? "enabled" : "disabled"}`,
+        };
+    }
+    return {
+        success: false,
+        error: `Unsupported direct workflow tool: ${name}`,
+        summary: "Unsupported direct workflow tool",
+    };
+}
 // Start OAuth authentication flow
 async function startAuthenticationFlow() {
     logToFile("Starting authentication flow via GraphQL");
@@ -423,6 +750,16 @@ Caido has the following modules:
 - **Filters** - Used for creating filters that users can later use in search using preset:alias
 - **Replay** - Consists of collections. Each collection contains sessions (requests). Users typically send interesting requests, and it's very important that both requests and collections are properly named so users don't get confused later.
 - **Match/Replace (Tamper)** - Consists of collections. Each collection contains rules. Needed so users can automatically modify requests or responses. Like with Replay, it's important to maintain proper naming.
+- **Workflows** - Reusable Caido automation graphs. There are three important kinds:
+  - ACTIVE workflows run against a selected request ID with run_active_workflow.
+  - PASSIVE workflows analyze traffic and are usually enabled/disabled with toggle_workflow.
+  - CONVERT workflows transform bytes/text. They are the workflow kind to use as building blocks in other modules.
+    Use CONVERT workflow IDs in Tamper replacers via replacer.workflow.id, and in HTTP Replay placeholders via placeholders[].preprocessors[].options.workflow.id.
+    Do not invent workflow definition JSON from memory. Before create_workflow/update_workflow, use get_workflow_definition_guide, generate_workflow_template, or clone an existing definition from get_workflow/list_workflows(include_definition: true), then validate with the matching test_*_workflow tool.
+    When the user wants Match/Replace to transform a matched value dynamically, list_workflows(kind: "CONVERT") first, then create_tamper_rule/update_tamper_rule with a workflow replacer.
+    When the user wants Replay placeholders to transform selected request bytes before sending, use update_http_replay_draft with a workflow preprocessor, then start_replay_task.
+    When the user asks to save a session, captcha, CSRF, JWT, cookie, header, or query parameter into an environment variable and reuse it in requests, generate an AUTH_CAPTURE workflow template with custom extraction_code, test it, create and enable it, then use update_http_replay_draft with an environment preprocessor placeholder pointing at that variable name.
+    For AUTH_CAPTURE extraction_code, use get_workflow_definition_guide for Caido JavaScript context. request/response expose getBody()?.toText(), request.getQuery(), and getHeader(name). In current Caido builds getHeader(name) returns an array, so use header[0] or join the array before parsing cookies.
 - **Findings** - Consists of discovered vulnerabilities. Users can create and view security findings.
 - **Scopes** - Consists of scopes. Usually bug hunters and pentesters are limited to a certain scope, on which they have the right to send requests. So sometimes it can be useful.
 
@@ -438,7 +775,7 @@ After authenticating, check the tools version with "get_tools_version".`;
 // Create MCP server
 const server = new Server({
     name: "caido-mcp-server",
-    version: "1.0.0",
+    version: "1.0.4",
 }, {
     capabilities: {
         tools: {},
@@ -572,6 +909,9 @@ Expires at: ${authRequest.expiresAt}`,
         else if (name === "get_plugin_info") {
             // Get plugin information
             result = await getPluginInfo();
+        }
+        else if (directWorkflowTools.has(name)) {
+            result = await executeDirectWorkflowTool(name, args);
         }
         else {
             // Call regular function in Caido plugin

@@ -2,16 +2,27 @@ import type { SDK } from "caido:plugin";
 
 import { executeGraphQLQueryviaSDK } from "../graphql";
 import {
+  CLEAR_REPLAY_ENTRY_DRAFT_MUTATION,
+  CREATE_REPLAY_SESSION_MUTATION,
   CREATE_REPLAY_SESSION_COLLECTION_MUTATION,
   getDefaultReplayCollectionsQuery,
   getMoveReplaySessionFragments,
   getRenameReplaySessionCollectionFragments,
-  getStartReplayTaskFragments,
+  REPLAY_SESSION_QUERY,
+  REPLAY_SESSIONS_QUERY,
+  SEND_REPLAY_WS_DRAFT_MUTATION,
+  SEND_REPLAY_WS_MESSAGE_MUTATION,
   MOVE_REPLAY_SESSION_MUTATION,
   RENAME_REPLAY_SESSION_COLLECTION_MUTATION,
   RENAME_REPLAY_SESSION_MUTATION,
   START_REPLAY_TASK_MUTATION,
+  STOP_REPLAY_WS_TASKS_MUTATION,
+  UPDATE_REPLAY_HTTP_DRAFT_MUTATION,
+  UPDATE_REPLAY_WS_DRAFT_MUTATION,
 } from "../graphql/queries";
+
+const toBase64 = (value: string, alreadyBase64 = false) =>
+  alreadyBase64 ? value : Buffer.from(value, "utf8").toString("base64");
 
 export const send_to_replay = async (sdk: SDK, input: any) => {
   try {
@@ -989,9 +1000,6 @@ export const move_replay_session = async (sdk: SDK, input: any) => {
 export const start_replay_task = async (sdk: SDK, input: any) => {
   try {
     const sessionId = input.session_id;
-    const rawRequest = input.raw_request + "\r\n\r\n";
-    const connection = input.connection;
-    const settings = input.settings || {};
 
     if (!sessionId) {
       return {
@@ -1001,41 +1009,12 @@ export const start_replay_task = async (sdk: SDK, input: any) => {
       };
     }
 
-    if (!rawRequest) {
-      return {
-        success: false,
-        error: "Raw request is required",
-        summary: "Please provide a raw HTTP request to replay",
-      };
-    }
-
-    // Encode raw request to base64
-    const base64Request = Buffer.from(rawRequest, "utf8").toString("base64");
-
-    // Use imported GraphQL mutation for starting replay task with specific fragments
-    const query =
-      START_REPLAY_TASK_MUTATION + "\n" + getStartReplayTaskFragments();
-
     const variables = {
       sessionId: sessionId,
-      input: {
-        connection: connection || {
-          host: "localhost",
-          port: 80,
-          isTLS: false,
-          SNI: null,
-        },
-        raw: base64Request,
-        settings: {
-          placeholders: settings.placeholders || [],
-          updateContentLength: settings.updateContentLength !== false,
-          connectionClose: settings.connectionClose !== undefined ? settings.connectionClose : false,
-        },
-      },
     };
 
     const result = await executeGraphQLQueryviaSDK(sdk, {
-      query,
+      query: START_REPLAY_TASK_MUTATION,
       variables,
       operationName: "startReplayTask",
     });
@@ -1092,6 +1071,458 @@ export const start_replay_task = async (sdk: SDK, input: any) => {
       error: `Failed to start replay task: ${error}`,
       details: error instanceof Error ? error.message : String(error),
       summary: "Failed to start replay task due to unexpected error",
+    };
+  }
+};
+
+export const list_replay_sessions = async (sdk: SDK, input: any) => {
+  try {
+    const first = input.limit || 50;
+    const after = input.after;
+    const kind = input.kind;
+
+    const result = await executeGraphQLQueryviaSDK(sdk, {
+      query: REPLAY_SESSIONS_QUERY,
+      variables: { first, after },
+      operationName: "replaySessions",
+    });
+
+    if (!result.success || !result.data) {
+      return {
+        success: false,
+        error: result.error || "Failed to list replay sessions",
+        summary: "Failed to retrieve replay sessions from Caido",
+      };
+    }
+
+    let sessions = result.data.replaySessions.edges.map((edge: any) => ({
+      cursor: edge.cursor,
+      ...edge.node,
+    }));
+    if (kind) {
+      const typename = String(kind).toUpperCase() === "WS" ? "ReplaySessionWs" : "ReplaySessionHttp";
+      sessions = sessions.filter((session: any) => session.__typename === typename);
+    }
+
+    return {
+      success: true,
+      sessions,
+      count: sessions.length,
+      pageInfo: result.data.replaySessions.pageInfo,
+      summary: `Retrieved ${sessions.length} replay session(s)`,
+    };
+  } catch (error) {
+    sdk.console.error("Error listing replay sessions:", error);
+    return {
+      success: false,
+      error: `Failed to list replay sessions: ${error}`,
+      details: error instanceof Error ? error.message : String(error),
+      summary: "Failed to retrieve replay sessions due to unexpected error",
+    };
+  }
+};
+
+export const get_replay_session = async (sdk: SDK, input: any) => {
+  try {
+    const id = input.id;
+    if (!id) {
+      return {
+        success: false,
+        error: "Replay session ID is required",
+        summary: "Please provide a replay session ID",
+      };
+    }
+
+    const result = await executeGraphQLQueryviaSDK(sdk, {
+      query: REPLAY_SESSION_QUERY,
+      variables: { id },
+      operationName: "replaySession",
+    });
+
+    if (!result.success || !result.data?.replaySession) {
+      return {
+        success: false,
+        error: result.error || "Replay session not found",
+        summary: `No replay session found with ID: ${id}`,
+      };
+    }
+
+    return {
+      success: true,
+      session: result.data.replaySession,
+      summary: `Replay session ${result.data.replaySession.id}: ${result.data.replaySession.name}`,
+    };
+  } catch (error) {
+    sdk.console.error("Error getting replay session:", error);
+    return {
+      success: false,
+      error: `Failed to get replay session: ${error}`,
+      details: error instanceof Error ? error.message : String(error),
+      summary: "Failed to retrieve replay session due to unexpected error",
+    };
+  }
+};
+
+export const create_websocket_replay_session = async (sdk: SDK, input: any) => {
+  try {
+    const requestId = input.request_id;
+    const collectionId = input.collection_id;
+    const rawRequest = input.raw_request;
+    const rawRequestBase64 = input.raw_request_base64;
+    const connection = input.connection;
+
+    const requestSource =
+      requestId
+        ? { id: requestId }
+        : rawRequest || rawRequestBase64
+          ? {
+              raw: {
+                connectionInfo: connection || {
+                  host: "localhost",
+                  port: 80,
+                  isTLS: false,
+                  SNI: null,
+                },
+                raw: toBase64(rawRequestBase64 || rawRequest, !!rawRequestBase64),
+              },
+            }
+          : undefined;
+
+    const result = await executeGraphQLQueryviaSDK(sdk, {
+      query: CREATE_REPLAY_SESSION_MUTATION,
+      variables: {
+        input: {
+          kind: "WS",
+          collectionId,
+          requestSource,
+        },
+      },
+      operationName: "createReplaySession",
+    });
+
+    const payload = result.data?.createReplaySession;
+    if (!result.success || payload?.error || !payload?.session) {
+      return {
+        success: false,
+        error: payload?.error || result.error || "Failed to create WS replay session",
+        summary: "Failed to create WebSocket replay session",
+      };
+    }
+
+    return {
+      success: true,
+      session: payload.session,
+      session_id: payload.session.id,
+      summary: `Created WebSocket replay session ${payload.session.id}`,
+    };
+  } catch (error) {
+    sdk.console.error("Error creating WebSocket replay session:", error);
+    return {
+      success: false,
+      error: `Failed to create WebSocket replay session: ${error}`,
+      details: error instanceof Error ? error.message : String(error),
+      summary: "Failed to create WebSocket replay session due to unexpected error",
+    };
+  }
+};
+
+export const update_websocket_replay_draft = async (sdk: SDK, input: any) => {
+  try {
+    const entryId = input.entry_id;
+    const raw = input.raw;
+    const rawBase64 = input.raw_base64;
+    if (!entryId || (!raw && !rawBase64)) {
+      return {
+        success: false,
+        error: "entry_id and raw or raw_base64 are required",
+        summary: "Please provide entry_id and draft payload",
+      };
+    }
+
+    const direction = input.direction || "CLIENT";
+    const format = input.format || "TEXT";
+    const serverTimeoutMs = input.server_timeout_ms || 30000;
+    const encodedRaw = toBase64(rawBase64 || raw, !!rawBase64);
+
+    const result = await executeGraphQLQueryviaSDK(sdk, {
+      query: UPDATE_REPLAY_WS_DRAFT_MUTATION,
+      variables: {
+        id: entryId,
+        input: {
+          ws: {
+            raw: encodedRaw,
+            direction,
+            format,
+            settings: { serverTimeoutMs },
+            editorState: input.editor_state_base64 || encodedRaw,
+          },
+        },
+      },
+      operationName: "updateReplayWsDraft",
+    });
+
+    if (!result.success || !result.data?.updateReplayEntryDraft?.entry) {
+      return {
+        success: false,
+        error: result.error || "Failed to update WS replay draft",
+        summary: `Failed to update WebSocket replay draft for entry ${entryId}`,
+      };
+    }
+
+    return {
+      success: true,
+      entry: result.data.updateReplayEntryDraft.entry,
+      summary: `Updated WebSocket replay draft for entry ${entryId}`,
+    };
+  } catch (error) {
+    sdk.console.error("Error updating WebSocket replay draft:", error);
+    return {
+      success: false,
+      error: `Failed to update WebSocket replay draft: ${error}`,
+      details: error instanceof Error ? error.message : String(error),
+      summary: "Failed to update WebSocket replay draft due to unexpected error",
+    };
+  }
+};
+
+export const update_http_replay_draft = async (sdk: SDK, input: any) => {
+  try {
+    const entryId = input.entry_id;
+    const raw = input.raw_request;
+    const rawBase64 = input.raw_request_base64;
+    if (!entryId || (!raw && !rawBase64)) {
+      return {
+        success: false,
+        error: "entry_id and raw_request or raw_request_base64 are required",
+        summary: "Please provide entry_id and HTTP replay draft request",
+      };
+    }
+
+    const encodedRaw = toBase64(rawBase64 || raw, !!rawBase64);
+    const result = await executeGraphQLQueryviaSDK(sdk, {
+      query: UPDATE_REPLAY_HTTP_DRAFT_MUTATION,
+      variables: {
+        id: entryId,
+        input: {
+          http: {
+            raw: encodedRaw,
+            connection: input.connection || {
+              host: "localhost",
+              port: 80,
+              isTLS: false,
+              SNI: null,
+            },
+            settings: {
+              placeholders: input.placeholders || [],
+            },
+            editorState: input.editor_state_base64 || encodedRaw,
+          },
+        },
+      },
+      operationName: "updateReplayHttpDraft",
+    });
+
+    if (!result.success || !result.data?.updateReplayEntryDraft?.entry) {
+      return {
+        success: false,
+        error: result.error || "Failed to update HTTP replay draft",
+        summary: `Failed to update HTTP replay draft for entry ${entryId}`,
+      };
+    }
+
+    return {
+      success: true,
+      entry: result.data.updateReplayEntryDraft.entry,
+      summary: `Updated HTTP replay draft for entry ${entryId}`,
+    };
+  } catch (error) {
+    sdk.console.error("Error updating HTTP replay draft:", error);
+    return {
+      success: false,
+      error: `Failed to update HTTP replay draft: ${error}`,
+      details: error instanceof Error ? error.message : String(error),
+      summary: "Failed to update HTTP replay draft due to unexpected error",
+    };
+  }
+};
+
+export const clear_replay_entry_draft = async (sdk: SDK, input: any) => {
+  try {
+    const entryId = input.entry_id;
+    const kind = input.kind || "WS";
+    if (!entryId) {
+      return {
+        success: false,
+        error: "entry_id is required",
+        summary: "Please provide a replay entry ID",
+      };
+    }
+
+    const result = await executeGraphQLQueryviaSDK(sdk, {
+      query: CLEAR_REPLAY_ENTRY_DRAFT_MUTATION,
+      variables: { id: entryId, kind },
+      operationName: "clearReplayEntryDraft",
+    });
+
+    if (!result.success || !result.data?.clearReplayEntryDraft?.entry) {
+      return {
+        success: false,
+        error: result.error || "Failed to clear replay draft",
+        summary: `Failed to clear replay draft for entry ${entryId}`,
+      };
+    }
+
+    return {
+      success: true,
+      entry: result.data.clearReplayEntryDraft.entry,
+      summary: `Cleared ${kind} replay draft for entry ${entryId}`,
+    };
+  } catch (error) {
+    sdk.console.error("Error clearing replay draft:", error);
+    return {
+      success: false,
+      error: `Failed to clear replay draft: ${error}`,
+      details: error instanceof Error ? error.message : String(error),
+      summary: "Failed to clear replay draft due to unexpected error",
+    };
+  }
+};
+
+export const send_websocket_replay_message = async (sdk: SDK, input: any) => {
+  try {
+    const taskId = input.task_id;
+    const raw = input.raw;
+    const rawBase64 = input.raw_base64;
+    if (!taskId || (!raw && !rawBase64)) {
+      return {
+        success: false,
+        error: "task_id and raw or raw_base64 are required",
+        summary: "Please provide task_id and WebSocket message payload",
+      };
+    }
+
+    const result = await executeGraphQLQueryviaSDK(sdk, {
+      query: SEND_REPLAY_WS_MESSAGE_MUTATION,
+      variables: {
+        task: taskId,
+        input: {
+          ws: {
+            direction: input.direction || "CLIENT",
+            data: toBase64(rawBase64 || raw, !!rawBase64),
+            format: input.format || "TEXT",
+          },
+        },
+      },
+      operationName: "sendReplayTaskMessage",
+    });
+
+    const payload = result.data?.sendReplayTaskMessage;
+    if (!result.success || payload?.error || !payload?.message) {
+      return {
+        success: false,
+        error: payload?.error || result.error || "Failed to send WS replay message",
+        summary: `Failed to send WebSocket replay message for task ${taskId}`,
+      };
+    }
+
+    return {
+      success: true,
+      message: payload.message,
+      summary: `Sent WebSocket replay message for task ${taskId}`,
+    };
+  } catch (error) {
+    sdk.console.error("Error sending WebSocket replay message:", error);
+    return {
+      success: false,
+      error: `Failed to send WebSocket replay message: ${error}`,
+      details: error instanceof Error ? error.message : String(error),
+      summary: "Failed to send WebSocket replay message due to unexpected error",
+    };
+  }
+};
+
+export const send_websocket_replay_draft = async (sdk: SDK, input: any) => {
+  try {
+    const taskId = input.task_id;
+    if (!taskId) {
+      return {
+        success: false,
+        error: "task_id is required",
+        summary: "Please provide a replay task ID",
+      };
+    }
+
+    const result = await executeGraphQLQueryviaSDK(sdk, {
+      query: SEND_REPLAY_WS_DRAFT_MUTATION,
+      variables: { task: taskId },
+      operationName: "sendReplayTaskMessageDraft",
+    });
+
+    const payload = result.data?.sendReplayTaskMessageDraft;
+    if (!result.success || payload?.error || !payload?.message) {
+      return {
+        success: false,
+        error: payload?.error || result.error || "Failed to send WS replay draft",
+        summary: `Failed to send WebSocket replay draft for task ${taskId}`,
+      };
+    }
+
+    return {
+      success: true,
+      message: payload.message,
+      summary: `Sent WebSocket replay draft for task ${taskId}`,
+    };
+  } catch (error) {
+    sdk.console.error("Error sending WebSocket replay draft:", error);
+    return {
+      success: false,
+      error: `Failed to send WebSocket replay draft: ${error}`,
+      details: error instanceof Error ? error.message : String(error),
+      summary: "Failed to send WebSocket replay draft due to unexpected error",
+    };
+  }
+};
+
+export const stop_websocket_replay_tasks = async (sdk: SDK, input: any) => {
+  try {
+    const taskIds = Array.isArray(input.task_ids)
+      ? input.task_ids
+      : [input.task_ids].filter(Boolean);
+    if (taskIds.length === 0) {
+      return {
+        success: false,
+        error: "task_ids is required",
+        summary: "Please provide one or more replay task IDs",
+      };
+    }
+
+    const result = await executeGraphQLQueryviaSDK(sdk, {
+      query: STOP_REPLAY_WS_TASKS_MUTATION,
+      variables: { taskIds },
+      operationName: "stopReplayWsTasks",
+    });
+
+    const payload = result.data?.stopReplayWsTasks;
+    if (!result.success || payload?.error) {
+      return {
+        success: false,
+        error: payload?.error || result.error || "Failed to stop WS replay tasks",
+        summary: `Failed to stop WebSocket replay task(s): ${taskIds.join(", ")}`,
+      };
+    }
+
+    return {
+      success: true,
+      task_ids: taskIds,
+      summary: `Stopped WebSocket replay task(s): ${taskIds.join(", ")}`,
+    };
+  } catch (error) {
+    sdk.console.error("Error stopping WebSocket replay tasks:", error);
+    return {
+      success: false,
+      error: `Failed to stop WebSocket replay tasks: ${error}`,
+      details: error instanceof Error ? error.message : String(error),
+      summary: "Failed to stop WebSocket replay tasks due to unexpected error",
     };
   }
 };
